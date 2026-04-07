@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="experience_levels">
+        <item>@string/experience_any</item>
+        <item>Internship</item>
+        <item>Entry Level</item>
+        <item>Mid Level</item>
+        <item>Senior Level</item>
+    </string-array>
+</resources>

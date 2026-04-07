@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">JobLens AI</string>
+    <string name="action_settings">Settings</string>
+    <string name="search_fragment_label">Search Jobs</string>
+    <string name="history_fragment_label">Recommendation History</string>
+    <string name="search_title">Find new job recommendations</string>
+    <string name="history_title">Previously recommended jobs</string>
+    <string name="hint_user_id">Andrew ID or user ID</string>
+    <string name="hint_role">Target role (example: Software Engineer)</string>
+    <string name="hint_location">Location (example: Pittsburgh, PA)</string>
+    <string name="button_search">Search</string>
+    <string name="button_open_history">View History</string>
+    <string name="button_refresh_history">Refresh History</string>
+    <string name="button_back_to_search">Back to Search</string>
+    <string name="search_helper_text">Enter a user ID, role, and location to ask the backend for concise job recommendations.</string>
+    <string name="history_helper_text">History is loaded from the backend using the last user ID you searched with.</string>
+    <string name="loading_recommendations">Loading recommendations from the backend...</string>
+    <string name="loading_history">Loading recommendation history...</string>
+    <string name="validation_message">Please enter your user ID, role, and location before searching.</string>
+    <string name="no_recommendations_found">No new jobs matched your search. Try changing the role, location, or experience level.</string>
+    <string name="recommendations_loaded_message">%1$d recommendations loaded. API latency: %2$d ms.</string>
+    <string name="user_id_needed_for_history">Enter a user ID first so the app knows whose history to load.</string>
+    <string name="history_requires_user">Search for jobs first so the app can remember a user ID for history.</string>
+    <string name="history_empty_message">No saved recommendations were found for this user yet.</string>
+    <string name="history_loaded_message">%1$d saved recommendations loaded.</string>
+    <string name="current_user_placeholder">Current user: -</string>
+    <string name="current_user_template">Current user: %1$s</string>
+    <string name="experience_any">Any</string>
+</resources>
