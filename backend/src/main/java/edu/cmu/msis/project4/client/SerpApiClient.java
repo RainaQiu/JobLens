@@ -1,6 +1,7 @@
 package edu.cmu.msis.project4.client;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import edu.cmu.msis.project4.config.AppConfig;
@@ -34,15 +35,19 @@ public class SerpApiClient {
             throws IOException, InterruptedException, ThirdPartyApiException {
         String baseUrl = AppConfig.get("SERPAPI_BASE_URL", "https://serpapi.com/search.json");
         String apiKey = AppConfig.getRequired("SERPAPI_API_KEY");
-        String query = buildQuery(role, location, experienceLevel);
+        String query = buildQuery(role, experienceLevel);
 
-        String url = baseUrl
-                + "?engine=" + encode(AppConfig.get("SERPAPI_ENGINE", "google_jobs"))
-                + "&q=" + encode(query)
-                + "&api_key=" + encode(apiKey);
+        StringBuilder url = new StringBuilder(baseUrl)
+                .append("?engine=").append(encode(AppConfig.get("SERPAPI_ENGINE", "google_jobs")))
+                .append("&q=").append(encode(query))
+                .append("&api_key=").append(encode(apiKey));
+
+        if (location != null && !location.isBlank()) {
+            url.append("&location=").append(encode(location));
+        }
 
         Instant start = Instant.now();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url.toString()))
                 .timeout(Duration.ofSeconds(20))
                 .GET()
                 .build();
@@ -74,31 +79,44 @@ public class SerpApiClient {
         JsonObject root = JsonParser.parseString(rawJson).getAsJsonObject();
         JsonArray results = root.has("jobs_results") ? root.getAsJsonArray("jobs_results") : new JsonArray();
 
-        for (int i = 0; i < results.size(); i++) {
-            JsonObject item = results.get(i).getAsJsonObject();
+        for (JsonElement element : results) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+
+            JsonObject item = element.getAsJsonObject();
+            if (!isLikelyFresh(item)) {
+                continue;
+            }
+
             JobRecommendation job = new JobRecommendation();
             job.title = getString(item, "title");
             job.company = getString(item, "company_name");
             job.location = getString(item, "location");
-            job.applyLink = getApplyLink(item);
             job.postedAt = getPostedAt(item);
-            job.reason = "Matches your selected role and location.";
-            job.jobKey = normalize(job.title) + "|" + normalize(job.company) + "|" + normalize(job.location);
+            job.applyLink = getApplyLink(item);
+            job.applySource = getApplySource(item);
+            job.shareLink = getString(item, "share_link");
+            job.workMode = getWorkMode(item);
+            job.employmentType = getEmploymentType(item);
+            job.jobKey = buildJobKey(item, job);
 
-            if (isLikelyFresh(item)) {
-                jobs.add(job);
-            }
+            jobs.add(job);
         }
 
         return jobs;
     }
 
-    private boolean isLikelyFresh(JsonObject item) {
-        if (!item.has("detected_extensions")) {
-            return false;
+    private String buildJobKey(JsonObject item, JobRecommendation job) {
+        String jobId = getString(item, "job_id");
+        if (!jobId.isBlank()) {
+            return jobId;
         }
-        JsonObject ext = item.getAsJsonObject("detected_extensions");
-        String posted = ext.has("posted_at") ? ext.get("posted_at").getAsString().toLowerCase(Locale.US) : "";
+        return normalize(job.title) + "|" + normalize(job.company) + "|" + normalize(job.location);
+    }
+
+    private boolean isLikelyFresh(JsonObject item) {
+        String posted = getPostedAt(item).toLowerCase(Locale.US);
         if (posted.isBlank()) {
             return false;
         }
@@ -127,23 +145,134 @@ public class SerpApiClient {
     }
 
     private String getApplyLink(JsonObject item) {
-        if (!item.has("related_links")) {
-            return "";
+        if (item.has("apply_options")) {
+            JsonArray applyOptions = item.getAsJsonArray("apply_options");
+            for (JsonElement element : applyOptions) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                String link = getString(element.getAsJsonObject(), "link");
+                if (!link.isBlank()) {
+                    return link;
+                }
+            }
         }
-        JsonArray links = item.getAsJsonArray("related_links");
-        if (links.size() == 0) {
-            return "";
+
+        String shareLink = getString(item, "share_link");
+        if (!shareLink.isBlank()) {
+            return shareLink;
         }
-        JsonObject first = links.get(0).getAsJsonObject();
-        return getString(first, "link");
+
+        if (item.has("related_links")) {
+            JsonArray links = item.getAsJsonArray("related_links");
+            for (JsonElement element : links) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                String link = getString(element.getAsJsonObject(), "link");
+                if (!link.isBlank()) {
+                    return link;
+                }
+            }
+        }
+        return "";
+    }
+
+    private String getApplySource(JsonObject item) {
+        if (item.has("apply_options")) {
+            JsonArray applyOptions = item.getAsJsonArray("apply_options");
+            for (JsonElement element : applyOptions) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                String title = getString(element.getAsJsonObject(), "title");
+                if (!title.isBlank()) {
+                    return title;
+                }
+            }
+        }
+
+        String via = getString(item, "via");
+        return via.isBlank() ? "Google Jobs" : via;
+    }
+
+    private String getWorkMode(JsonObject item) {
+        JsonObject detectedExtensions = getObject(item, "detected_extensions");
+        if (detectedExtensions != null
+                && detectedExtensions.has("work_from_home")
+                && !detectedExtensions.get("work_from_home").isJsonNull()
+                && detectedExtensions.get("work_from_home").getAsBoolean()) {
+            return "Remote";
+        }
+
+        for (String token : extensionTokens(item)) {
+            String normalized = token.toLowerCase(Locale.US);
+            if (normalized.contains("remote")) {
+                return "Remote";
+            }
+            if (normalized.contains("hybrid")) {
+                return "Hybrid";
+            }
+            if (normalized.contains("on-site") || normalized.contains("onsite")) {
+                return "On-site";
+            }
+        }
+        return "";
+    }
+
+    private String getEmploymentType(JsonObject item) {
+        for (String token : extensionTokens(item)) {
+            String normalized = token.toLowerCase(Locale.US);
+            if (normalized.contains("intern")) {
+                return "Internship";
+            }
+            if (normalized.contains("full-time")) {
+                return "Full-time";
+            }
+            if (normalized.contains("part-time")) {
+                return "Part-time";
+            }
+            if (normalized.contains("contract")) {
+                return "Contract";
+            }
+            if (normalized.contains("temporary")) {
+                return "Temporary";
+            }
+        }
+        return "";
+    }
+
+    private List<String> extensionTokens(JsonObject item) {
+        List<String> tokens = new ArrayList<>();
+        if (item.has("extensions")) {
+            JsonArray extensions = item.getAsJsonArray("extensions");
+            for (JsonElement extension : extensions) {
+                if (!extension.isJsonNull()) {
+                    tokens.add(extension.getAsString());
+                }
+            }
+        }
+
+        JsonObject detectedExtensions = getObject(item, "detected_extensions");
+        if (detectedExtensions != null) {
+            String scheduleType = getString(detectedExtensions, "schedule_type");
+            if (!scheduleType.isBlank()) {
+                tokens.add(scheduleType);
+            }
+        }
+        return tokens;
     }
 
     private String getPostedAt(JsonObject item) {
-        if (!item.has("detected_extensions")) {
+        JsonObject detectedExtensions = getObject(item, "detected_extensions");
+        if (detectedExtensions == null) {
             return "";
         }
-        JsonObject ext = item.getAsJsonObject("detected_extensions");
-        return ext.has("posted_at") ? ext.get("posted_at").getAsString() : "";
+        return getString(detectedExtensions, "posted_at");
+    }
+
+    private JsonObject getObject(JsonObject obj, String key) {
+        return obj.has(key) && obj.get(key).isJsonObject() ? obj.getAsJsonObject(key) : null;
     }
 
     private String getString(JsonObject obj, String key) {
@@ -154,14 +283,11 @@ public class SerpApiClient {
         return value == null ? "" : value.trim().toLowerCase(Locale.US).replaceAll("\\s+", " ");
     }
 
-    private String buildQuery(String role, String location, String experienceLevel) {
+    private String buildQuery(String role, String experienceLevel) {
         StringBuilder query = new StringBuilder();
         query.append(role == null ? "" : role.trim());
         if (experienceLevel != null && !experienceLevel.isBlank() && !"Any".equalsIgnoreCase(experienceLevel.trim())) {
             query.append(' ').append(experienceLevel.trim());
-        }
-        if (location != null && !location.isBlank()) {
-            query.append(' ').append(location.trim());
         }
         return query.toString().trim();
     }

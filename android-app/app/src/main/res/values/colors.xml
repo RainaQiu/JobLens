@@ -2,4 +2,14 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="brand_ink">#16333C</color>
+    <color name="brand_teal">#2F7F79</color>
+    <color name="brand_teal_dark">#256660</color>
+    <color name="brand_mint">#DFF1EB</color>
+    <color name="canvas_sand">#F4EFE7</color>
+    <color name="surface_card">#FFFDF9</color>
+    <color name="surface_chip">#EEF5F2</color>
+    <color name="stroke_soft">#D4DDD9</color>
+    <color name="text_muted">#617378</color>
+    <color name="text_soft">#738288</color>
 </resources>

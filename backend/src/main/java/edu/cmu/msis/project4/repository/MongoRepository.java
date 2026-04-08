@@ -45,6 +45,10 @@ public class MongoRepository {
                 .append("location", job.location)
                 .append("postedAt", job.postedAt)
                 .append("applyLink", job.applyLink)
+                .append("applySource", job.applySource)
+                .append("shareLink", job.shareLink)
+                .append("workMode", job.workMode)
+                .append("employmentType", job.employmentType)
                 .append("recommendedAt", Instant.now().toString())
                 .append("source", "google_jobs");
         historyCollection.insertOne(doc);

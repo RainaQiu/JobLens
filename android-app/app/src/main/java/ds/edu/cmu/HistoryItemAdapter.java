@@ -1,8 +1,11 @@
 package ds.edu.cmu;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -50,7 +53,9 @@ public class HistoryItemAdapter extends RecyclerView.Adapter<HistoryItemAdapter.
         private final TextView textLocation;
         private final TextView textPostedAt;
         private final TextView textRecommendedAt;
-        private final TextView textApplyLink;
+        private final TextView textApplySource;
+        private final TextView textMeta;
+        private final Button buttonApply;
 
         HistoryViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -59,20 +64,78 @@ public class HistoryItemAdapter extends RecyclerView.Adapter<HistoryItemAdapter.
             textLocation = itemView.findViewById(R.id.text_history_location);
             textPostedAt = itemView.findViewById(R.id.text_history_posted_at);
             textRecommendedAt = itemView.findViewById(R.id.text_history_recommended_at);
-            textApplyLink = itemView.findViewById(R.id.text_history_apply_link);
+            textApplySource = itemView.findViewById(R.id.text_history_apply_source);
+            textMeta = itemView.findViewById(R.id.text_history_meta);
+            buttonApply = itemView.findViewById(R.id.button_history_apply);
         }
 
         void bind(HistoryItem item) {
-            textTitle.setText(item == null || blank(item.title) ? "Untitled role" : item.title);
-            textCompany.setText(label("Company", valueOrFallback(item == null ? "" : item.company, "Unknown")));
-            textLocation.setText(label("Location", valueOrFallback(item == null ? "" : item.location, "Unknown")));
-            textPostedAt.setText(label("Posted", valueOrFallback(item == null ? "" : item.postedAt, "Unknown")));
-            textRecommendedAt.setText(label("Recommended", valueOrFallback(item == null ? "" : item.recommendedAt, "Unknown")));
-            textApplyLink.setText(label("Apply link", valueOrFallback(item == null ? "" : item.applyLink, "Not provided")));
+            textTitle.setText(valueOrFallback(item == null ? "" : item.title,
+                    itemView.getContext().getString(R.string.job_title_fallback)));
+            textCompany.setText(valueOrFallback(item == null ? "" : item.company,
+                    itemView.getContext().getString(R.string.job_company_fallback)));
+            textLocation.setText(valueOrFallback(item == null ? "" : item.location,
+                    itemView.getContext().getString(R.string.job_location_fallback)));
+            textPostedAt.setText(valueOrFallback(item == null ? "" : item.postedAt,
+                    itemView.getContext().getString(R.string.job_posted_fallback)));
+            textRecommendedAt.setText(itemView.getContext().getString(
+                    R.string.history_recommended_template,
+                    valueOrFallback(item == null ? "" : item.recommendedAt, "-")));
+
+            String applySource = valueOrFallback(item == null ? "" : item.applySource,
+                    itemView.getContext().getString(R.string.job_apply_source_fallback));
+            textApplySource.setText(itemView.getContext().getString(R.string.job_source_template, applySource));
+
+            String metaText = joinMeta(item == null ? "" : item.workMode, item == null ? "" : item.employmentType);
+            if (blank(metaText)) {
+                textMeta.setVisibility(View.GONE);
+            } else {
+                textMeta.setVisibility(View.VISIBLE);
+                textMeta.setText(metaText);
+            }
+
+            String destination = primaryDestination(item);
+            buttonApply.setEnabled(!blank(destination));
+            buttonApply.setText(buttonLabel(item, destination));
+            buttonApply.setOnClickListener(v -> {
+                if (blank(destination)) {
+                    return;
+                }
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(destination));
+                itemView.getContext().startActivity(intent);
+            });
         }
 
-        private static String label(String label, String value) {
-            return label + ": " + value;
+        private String joinMeta(String left, String right) {
+            if (!blank(left) && !blank(right)) {
+                return itemView.getContext().getString(R.string.job_meta_template, left, right);
+            }
+            if (!blank(left)) {
+                return itemView.getContext().getString(R.string.job_meta_single, left);
+            }
+            if (!blank(right)) {
+                return itemView.getContext().getString(R.string.job_meta_single, right);
+            }
+            return "";
+        }
+
+        private String primaryDestination(HistoryItem item) {
+            if (item == null) {
+                return "";
+            }
+            if (!blank(item.applyLink)) {
+                return item.applyLink;
+            }
+            return valueOrFallback(item.shareLink, "");
+        }
+
+        private String buttonLabel(HistoryItem item, String destination) {
+            if (blank(destination)) {
+                return itemView.getContext().getString(R.string.apply_link_unavailable);
+            }
+            return blank(item == null ? "" : item.applyLink)
+                    ? itemView.getContext().getString(R.string.open_job_page)
+                    : itemView.getContext().getString(R.string.apply_now);
         }
 
         private static String valueOrFallback(String value, String fallback) {
@@ -84,4 +147,3 @@ public class HistoryItemAdapter extends RecyclerView.Adapter<HistoryItemAdapter.
         }
     }
 }
-

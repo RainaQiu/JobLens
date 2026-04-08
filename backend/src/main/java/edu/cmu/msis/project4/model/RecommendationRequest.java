@@ -8,4 +8,5 @@ public class RecommendationRequest {
     public String role;
     public String location;
     public String experienceLevel;
+    public String searchScope;
 }

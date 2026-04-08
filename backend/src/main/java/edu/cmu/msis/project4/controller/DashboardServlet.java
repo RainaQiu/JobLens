@@ -28,6 +28,9 @@ public class DashboardServlet extends HttpServlet {
         req.setAttribute("averageApiLatencyMs", averageOf(logs, "thirdPartyLatencyMs"));
         req.setAttribute("averageReturnedCount", averageOf(logs, "returnedCount"));
         req.setAttribute("topRole", topRole(logs));
+        req.setAttribute("applyCoveragePercent", applyCoveragePercent(logs));
+        req.setAttribute("nationwideRequestCount", countByStrategy(logs, "us_nationwide"));
+        req.setAttribute("topResolvedLocation", topResolvedLocation(logs));
         req.getRequestDispatcher("/WEB-INF/jsp/dashboard.jsp").forward(req, resp);
     }
 
@@ -49,6 +52,38 @@ public class DashboardServlet extends HttpServlet {
                 .map(log -> log.getString("inputRole"))
                 .filter(role -> role != null && !role.isBlank())
                 .collect(java.util.stream.Collectors.groupingBy(role -> role, java.util.stream.Collectors.counting()))
+                .entrySet()
+                .stream()
+                .max(java.util.Map.Entry.comparingByValue())
+                .map(java.util.Map.Entry::getKey)
+                .orElse("N/A");
+    }
+
+    private long applyCoveragePercent(List<Document> logs) {
+        long returnedJobs = logs.stream()
+                .mapToLong(log -> ((Number) log.getOrDefault("returnedCount", 0)).longValue())
+                .sum();
+        if (returnedJobs == 0) {
+            return 0;
+        }
+
+        long jobsWithApplyLinks = logs.stream()
+                .mapToLong(log -> ((Number) log.getOrDefault("jobsWithApplyLinks", 0)).longValue())
+                .sum();
+        return Math.round((jobsWithApplyLinks * 100.0) / returnedJobs);
+    }
+
+    private long countByStrategy(List<Document> logs, String strategy) {
+        return logs.stream()
+                .filter(log -> strategy.equalsIgnoreCase(log.getString("searchStrategy")))
+                .count();
+    }
+
+    private String topResolvedLocation(List<Document> logs) {
+        return logs.stream()
+                .map(log -> log.getString("resolvedLocation"))
+                .filter(location -> location != null && !location.isBlank())
+                .collect(java.util.stream.Collectors.groupingBy(location -> location, java.util.stream.Collectors.counting()))
                 .entrySet()
                 .stream()
                 .max(java.util.Map.Entry.comparingByValue())

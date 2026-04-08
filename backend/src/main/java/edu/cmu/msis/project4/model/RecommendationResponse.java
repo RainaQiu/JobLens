@@ -16,5 +16,11 @@ public class RecommendationResponse {
         public int freshnessWindowDays = 7;
         public boolean dedupApplied = true;
         public long apiLatencyMs;
+        public String requestedSearchScope = "AUTO";
+        public String searchStrategy = "";
+        public String resolvedLocation = "";
+        public String searchSummary = "";
+        public int searchedLocationsCount;
+        public int jobsWithApplyLinks;
     }
 }

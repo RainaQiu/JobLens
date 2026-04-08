@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string-array name="search_scope_labels">
+        <item>@string/scope_auto</item>
+        <item>@string/scope_specific</item>
+        <item>@string/scope_nationwide_us</item>
+    </string-array>
     <string-array name="experience_levels">
         <item>@string/experience_any</item>
         <item>Internship</item>

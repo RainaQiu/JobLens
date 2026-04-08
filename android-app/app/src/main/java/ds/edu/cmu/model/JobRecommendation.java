@@ -10,6 +10,8 @@ public class JobRecommendation {
     public String location;
     public String postedAt;
     public String applyLink;
-    public String reason;
+    public String applySource;
+    public String shareLink;
+    public String workMode;
+    public String employmentType;
 }
-
