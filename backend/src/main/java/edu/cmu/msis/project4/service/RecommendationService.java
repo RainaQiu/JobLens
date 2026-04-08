@@ -56,7 +56,7 @@ public class RecommendationService {
             throw e;
         }
 
-        int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "10"));
+        int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
         List<JobRecommendation> filtered = new ArrayList<>();
         Set<String> seenInThisResponse = new HashSet<>();
         for (JobRecommendation job : aggregation.uniqueJobs.values()) {
@@ -175,7 +175,7 @@ public class RecommendationService {
     private SearchAggregation searchAcrossLocations(RecommendationRequest request, ResolvedLocation resolvedLocation)
             throws Exception {
         SearchAggregation aggregation = new SearchAggregation();
-        int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "10"));
+        int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
         int minNationwideQueries = Integer.parseInt(AppConfig.get("NATIONWIDE_US_MIN_STATES", "4"));
         ThirdPartyApiException lastFailure = null;
 

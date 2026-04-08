@@ -12,6 +12,7 @@ JobLens AI is a mobile-to-cloud distributed application for personalized job dis
 - The backend resolves free-form location text before searching.
 - If the request is `United States` or `Nationwide U.S.`, the backend expands the search into a prioritized multi-state U.S. search.
 - Results focus on concise, job-seeker-friendly cards: title, company, location, posted time, work mode, employment type, and a direct `Apply Now` action when available.
+- Search and history both use client-side pagination (10 items per page) with previous/next controls.
 - Recommendation history and mobile request logs are stored in MongoDB Atlas.
 - The dashboard shows analytics and formatted logs for mobile search activity.
 
@@ -29,6 +30,7 @@ This keeps the mobile UI simple while letting the backend own the business logic
 - Location resolution: user input is normalized into a better search location when possible.
 - U.S. nationwide expansion: a broad U.S. search fans out into multiple state-level searches to improve geographic coverage.
 - Apply-first output: the backend prefers `apply_options` links from SerpAPI and falls back to a share page only when a direct apply link is unavailable.
+- Mobile pagination: the app displays search and history results in pages of 10 jobs.
 
 ## Tech stack
 - Android Studio with Java Android client
@@ -109,6 +111,7 @@ Notes:
 - Set variables in your IntelliJ / Tomcat run configuration or in Codespaces.
 - `NATIONWIDE_US_MAX_STATES` controls how many prioritized U.S. state searches are used for a nationwide request.
 - `NATIONWIDE_US_MIN_STATES` controls the minimum number of state searches before early exit is allowed.
+- `MAX_RESULTS_RETURNED` defaults to `50`, so the app can paginate larger recommendation sets.
 
 ## Local development
 - Open `backend/` in IntelliJ IDEA.

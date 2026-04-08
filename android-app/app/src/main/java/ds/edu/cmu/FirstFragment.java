@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import ds.edu.cmu.api.ApiClient;
@@ -31,10 +32,13 @@ public class FirstFragment extends Fragment {
     private static final String SCOPE_AUTO = "AUTO";
     private static final String SCOPE_SPECIFIC = "SPECIFIC";
     private static final String SCOPE_NATIONWIDE_US = "NATIONWIDE_US";
+    private static final int PAGE_SIZE = 10;
 
     private FragmentFirstBinding binding;
     private final ApiClient apiClient = new ApiClient();
     private final JobRecommendationAdapter jobAdapter = new JobRecommendationAdapter();
+    private final List<JobRecommendation> allRecommendations = new ArrayList<>();
+    private int currentSearchPage = 0;
 
     @Override
     public View onCreateView(
@@ -60,6 +64,9 @@ public class FirstFragment extends Fragment {
         binding.textSearchSummary.setText(getString(R.string.search_summary_placeholder));
         binding.buttonSearch.setOnClickListener(v -> submitSearch());
         binding.buttonOpenHistory.setOnClickListener(v -> openHistory());
+        binding.buttonSearchPrevPage.setOnClickListener(v -> goToPreviousSearchPage());
+        binding.buttonSearchNextPage.setOnClickListener(v -> goToNextSearchPage());
+        renderSearchPage();
     }
 
     @Override
@@ -106,6 +113,9 @@ public class FirstFragment extends Fragment {
         saveLastInputs(userId, role, location, experienceLevel, searchScope);
         setLoading(true, getString(R.string.loading_recommendations));
         binding.textSearchSummary.setText(getString(R.string.search_summary_placeholder));
+        allRecommendations.clear();
+        currentSearchPage = 0;
+        renderSearchPage();
 
         RecommendationRequest request = new RecommendationRequest();
         request.userId = userId;
@@ -125,7 +135,9 @@ public class FirstFragment extends Fragment {
                 requireActivity().runOnUiThread(() -> {
                     setLoading(false, message);
                     binding.textSearchSummary.setText(getString(R.string.search_summary_placeholder));
-                    jobAdapter.submitList(null);
+                    allRecommendations.clear();
+                    currentSearchPage = 0;
+                    renderSearchPage();
                 });
             }
         });
@@ -133,8 +145,14 @@ public class FirstFragment extends Fragment {
 
     private void renderRecommendations(RecommendationResponse result) {
         setLoading(false, "");
+        allRecommendations.clear();
         List<JobRecommendation> jobs = result == null ? null : result.jobs;
-        jobAdapter.submitList(jobs);
+        if (jobs != null) {
+            allRecommendations.addAll(jobs);
+        }
+        currentSearchPage = 0;
+        renderSearchPage();
+
         String searchSummary = (result == null || result.meta == null || result.meta.searchSummary == null
                 || result.meta.searchSummary.trim().isEmpty())
                 ? getString(R.string.search_summary_placeholder)
@@ -177,6 +195,53 @@ public class FirstFragment extends Fragment {
 
     private void showStatus(String message) {
         binding.textStatus.setText(message);
+    }
+
+    private void goToPreviousSearchPage() {
+        if (currentSearchPage <= 0) {
+            return;
+        }
+        currentSearchPage--;
+        renderSearchPage();
+    }
+
+    private void goToNextSearchPage() {
+        int totalPages = totalPages(allRecommendations.size());
+        if (currentSearchPage >= totalPages - 1) {
+            return;
+        }
+        currentSearchPage++;
+        renderSearchPage();
+    }
+
+    private void renderSearchPage() {
+        int total = allRecommendations.size();
+        int totalPages = totalPages(total);
+
+        if (total == 0) {
+            jobAdapter.submitList(new ArrayList<>());
+            binding.layoutSearchPagination.setVisibility(View.GONE);
+            binding.textSearchPageInfo.setText(getString(R.string.page_indicator_default));
+            return;
+        }
+
+        currentSearchPage = Math.max(0, Math.min(currentSearchPage, totalPages - 1));
+        int fromIndex = currentSearchPage * PAGE_SIZE;
+        int toIndex = Math.min(fromIndex + PAGE_SIZE, total);
+
+        jobAdapter.submitList(new ArrayList<>(allRecommendations.subList(fromIndex, toIndex)));
+
+        binding.layoutSearchPagination.setVisibility(total > PAGE_SIZE ? View.VISIBLE : View.GONE);
+        binding.buttonSearchPrevPage.setEnabled(currentSearchPage > 0);
+        binding.buttonSearchNextPage.setEnabled(currentSearchPage < totalPages - 1);
+        binding.textSearchPageInfo.setText(getString(R.string.page_indicator_template, currentSearchPage + 1, totalPages));
+    }
+
+    private int totalPages(int totalItems) {
+        if (totalItems <= 0) {
+            return 1;
+        }
+        return (totalItems + PAGE_SIZE - 1) / PAGE_SIZE;
     }
 
     private String textOf(EditText editText) {

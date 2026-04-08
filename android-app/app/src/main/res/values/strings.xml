@@ -47,4 +47,9 @@
     <string name="job_meta_template">%1$s - %2$s</string>
     <string name="job_meta_single">%1$s</string>
     <string name="history_recommended_template">Recommended on %1$s</string>
+    <string name="button_previous_page">Previous</string>
+    <string name="button_next_page">Next</string>
+    <string name="page_indicator_default">Page 1 of 1</string>
+    <string name="page_indicator_template">Page %1$d of %2$d</string>
+    <string name="showing_items_template">Showing %1$d-%2$d of %3$d</string>
 </resources>
