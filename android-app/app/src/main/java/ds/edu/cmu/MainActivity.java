@@ -11,6 +11,9 @@ import androidx.navigation.ui.NavigationUI;
 
 import ds.edu.cmu.databinding.ActivityMainBinding;
 
+/**
+ * Author: Raina Qiu (yuluq)
+ */
 public class MainActivity extends AppCompatActivity {
 
     private AppBarConfiguration appBarConfiguration;

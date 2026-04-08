@@ -22,6 +22,9 @@ import ds.edu.cmu.model.JobRecommendation;
 import ds.edu.cmu.model.RecommendationRequest;
 import ds.edu.cmu.model.RecommendationResponse;
 
+/**
+ * Author: Raina Qiu (yuluq)
+ */
 public class FirstFragment extends Fragment {
     private static final String PREFS_NAME = "joblens_prefs";
     private static final String KEY_USER_ID = "last_user_id";

@@ -1,0 +1,166 @@
+Project 4 Task 2 Writeup Draft
+JobLens AI
+
+Name: Raina Qiu
+Andrew ID: yuluq
+
+Overview
+JobLens AI is a distributed mobile-to-cloud application that helps users search for job opportunities based on role, location, search scope, and experience level. The native Android application sends requests to a Java Servlet web service deployed in the cloud. The web service performs the main business logic, including resolving free-form locations, expanding United States nationwide searches into multiple state-level searches, calling the SerpAPI Google Jobs API, filtering and formatting results, storing history and logs in MongoDB Atlas, and serving a browser-based operations dashboard.
+
+Third-Party API
+API Name: SerpAPI Google Jobs API
+API Documentation: https://serpapi.com/google-jobs-api
+
+System Architecture
+The Android application communicates with the cloud-hosted web service over HTTP using JSON. The web service communicates with the SerpAPI Google Jobs API to fetch structured job data, and it stores request logs and recommendation history in MongoDB Atlas. A separate dashboard URL renders analytics and logs as an HTML page for desktop or laptop browsers.
+
+[INSERT SCREENSHOT: Full system architecture diagram or application overview diagram]
+
+Requirement 1. Native Android Application
+
+1a. At least three different kinds of Views in the layout
+The Android application uses more than three distinct kinds of Android Views. Examples include TextView, TextInputEditText, Spinner, MaterialButton, and RecyclerView. The search screen contains input fields for user ID, target role, and location, along with dropdown selectors for search scope and experience level. The results and history screens use RecyclerView to display job cards with structured job information and apply actions.
+
+[INSERT SCREENSHOT: Android search screen showing multiple view types]
+
+1b. Requires input from the user
+The application requires user input before making a job recommendation request. The user provides an Andrew ID or user ID, a target role such as "software engineer" or "data scientist," a location that may be a country, state, or city, a search scope, and an experience level such as Internship or Entry Level.
+
+1c. Makes an HTTP request to the web service
+When the user taps the Search Jobs button, the Android app sends an HTTP POST request to the cloud web service endpoint `/api/recommendations`. The request body is JSON and contains `userId`, `role`, `location`, `searchScope`, and `experienceLevel`. When the user taps View History or Refresh History, the app sends an HTTP GET request to `/api/history?userId=...`.
+
+1d. Receives and parses a JSON reply from the web service
+The Android application uses OkHttp and Gson to receive and parse JSON returned by the web service. The recommendation response includes a request ID, metadata about how the location was interpreted, and a list of job recommendation objects. The history response includes a list of previously recommended job records for the selected user.
+
+1e. Displays new information to the user
+After the request completes, the application displays job recommendation cards directly in the search screen. Each card shows the job title, company, location, posting time, and an Apply Now action when an apply link is available. The app also displays a summary message explaining how the backend interpreted the location input. The history screen displays previous recommendations with pagination and apply actions.
+
+[INSERT SCREENSHOT: Search results screen showing recommendation cards and pagination]
+[INSERT SCREENSHOT: Recommendation history screen showing saved recommendations and pagination]
+
+1f. Is repeatable
+The Android application is repeatable and reusable without restarting. The user can search again with different inputs, paginate through the current results, open history, refresh history, return to the search screen, and perform additional searches in the same session.
+
+Requirement 2. Web Service
+
+2a. Implements a simple API
+The web service is implemented as a Java Servlet application and exposes simple REST-like endpoints:
+- `POST /api/recommendations`
+- `GET /api/history?userId=...`
+- `GET /dashboard`
+
+2b. Receives an HTTP request from the native Android application
+The Android app sends requests to the deployed web service. The recommendation servlet receives the JSON request body from the Android client, and the history servlet receives the user ID as a query parameter.
+
+2c. Executes business logic, including fetching XML or JSON from a third-party API
+The main business logic is implemented on the server, not on the mobile device. The server validates the request, resolves free-form location input, determines whether to perform a specific-location search or a U.S. nationwide search, queries the SerpAPI Google Jobs API, filters duplicate or already-recommended jobs, and stores recommendation history and request logs in MongoDB Atlas.
+
+One of the application’s unique behaviors is location normalization. Users can enter a country, state, or city. For example, if a user selects Nationwide U.S. mode or enters "United States," the backend expands that request into multiple state-level searches so that a broad U.S.-wide search is possible even when many job systems prefer state-level locations. This business logic is handled entirely by the web service.
+
+The application does not use screen scraping. It only consumes structured JSON data from a published third-party API.
+
+2d. Replies to the Android application with JSON
+The web service returns JSON responses tailored to the needs of the Android client. The recommendation endpoint returns only the fields needed by the app, including request metadata, normalized search information, and job cards with title, company, location, posting time, apply link, apply source, work mode, and employment type. The history endpoint returns a simplified list of saved recommendation items. This design keeps unnecessary computation and parsing off the mobile device.
+
+2e. Uses Servlets instead of JAX-RS
+The web service is built with Java Servlets and JSP, not JAX-RS. The endpoints are implemented using `HttpServlet` classes, and the dashboard is rendered using JSP.
+
+[INSERT SCREENSHOT: Browser or Postman output showing JSON response from /api/recommendations]
+[INSERT SCREENSHOT: Browser output showing JSON response from /api/history]
+
+Requirement 3. Error Handling
+Although the instructions say this section does not need to be documented in the writeup, the application does handle major error conditions gracefully. The Android app validates missing input and shows readable error messages. The web service validates invalid server-side input even if the Android app fails to do so. Network failures are caught on the Android client and displayed as user-friendly messages. Third-party API failures are reported by the server as gateway errors, and invalid or unparsable server responses are also handled gracefully.
+
+[OPTIONAL INSERT SCREENSHOT: Example invalid input error]
+[OPTIONAL INSERT SCREENSHOT: Example backend or network error message]
+
+Requirement 4. Log Useful Information
+The web service logs useful information for each mobile request and reply. The logs are stored only for mobile interactions, not for dashboard viewing. Each log record stores more than the required six pieces of information. Examples include:
+- request ID
+- endpoint
+- user ID
+- input role
+- input location
+- input experience level
+- input search scope
+- resolved location
+- resolved location type
+- search strategy
+- device model
+- app version
+- client IP
+- user agent
+- third-party API status
+- third-party API latency
+- third-party call count
+- third-party result count
+- number of returned jobs
+- number of jobs with apply links
+- number of searched locations
+- error type
+- timestamps
+
+This information captures the mobile request, the third-party API interaction, and the reply sent back to the mobile application.
+
+Requirement 5. Store the Log Information in a MongoDB Database
+The web service connects to MongoDB Atlas using the official MongoDB Java driver. It stores persistent data in cloud collections so that the data survives application restarts. The current implementation uses MongoDB Atlas to store:
+- recommendation history in the `recommendation_history` collection
+- request logs in the `request_logs` collection
+
+The recommendation history is used by the Android history screen, and the request logs are used by the operations dashboard. Because the database is hosted in the cloud, both the local development environment and the cloud-hosted web service can access the same persistent data.
+
+[INSERT SCREENSHOT: MongoDB Atlas collection view showing request logs and/or recommendation history]
+
+Requirement 6. Display Operations Analytics and Full Logs on a Web-Based Dashboard
+
+6a. Unique URL for the dashboard
+The web service exposes a unique dashboard URL at `/dashboard`. This dashboard is designed for desktop or laptop browsers rather than mobile use.
+
+6b. At least three interesting operations analytics
+The dashboard displays multiple analytics about application usage. Examples currently shown include:
+- total mobile requests
+- successful request count
+- failed request count
+- average third-party API latency
+- average number of jobs returned
+- top search role
+- apply link coverage percentage
+- number of nationwide U.S. requests
+- top resolved location
+
+These analytics are specific to the behavior of JobLens AI and show how the service is being used in practice.
+
+6c. Formatted full logs
+The dashboard also displays full mobile request logs in a readable HTML table. The logs are not shown as raw JSON or XML. Each row displays key fields such as the timestamp, user, role, raw input, resolved search information, scope and strategy, device information, third-party API call information, latency, returned count, apply-link count, and error type.
+
+[INSERT SCREENSHOT: Dashboard analytics cards]
+[INSERT SCREENSHOT: Dashboard log table]
+
+Requirement 7. Deploy the Web Service to GitHub Codespaces
+The web service is prepared for deployment in the GitHub Classroom repository. The repository contains the required `.devcontainer.json`, `Dockerfile`, `build-and-run.sh`, and a working `ROOT.war`. The Docker configuration was updated to use a Tomcat 9 + Java 17 base image so that it matches the Servlet and Java version used by the application.
+
+Deployment procedure:
+1. Accept the GitHub Classroom assignment.
+2. Push the working source code and `ROOT.war` to the Classroom repository.
+3. Create a Codespace on the repository’s main branch.
+4. Configure the required environment variables for the running service, including `SERPAPI_API_KEY` and `MONGODB_URI`.
+5. Verify that port 8080 is forwarded.
+6. Change the port visibility from Private to Public.
+7. Open the public URL in a browser and verify that the service is reachable.
+8. Use that public URL in the Android app’s API base URL and confirm that the mobile app can communicate with the cloud-hosted service.
+
+[INSERT SCREENSHOT: GitHub Classroom repository with project files]
+[INSERT SCREENSHOT: Codespaces terminal or running container]
+[INSERT SCREENSHOT: Port 8080 marked Public]
+[INSERT SCREENSHOT: Public dashboard URL working in browser]
+[INSERT SCREENSHOT: Android app configured to use the public Codespaces URL]
+
+Files Submitted
+The final submission will include:
+- `ROOT.war`
+- IntelliJ IDEA project zip file for the web service
+- Android Studio project zip file for the Android application
+- writeup PDF
+
+Conclusion
+JobLens AI satisfies the distributed application requirements by combining a native Android client, a Java Servlet cloud web service, a published third-party API, a MongoDB Atlas cloud database, and a browser-based operations dashboard. The project demonstrates client-server communication, third-party API integration, cloud persistence, analytics, and deployment-ready packaging.

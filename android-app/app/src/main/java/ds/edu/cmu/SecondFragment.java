@@ -18,6 +18,9 @@ import ds.edu.cmu.api.ApiClient;
 import ds.edu.cmu.databinding.FragmentSecondBinding;
 import ds.edu.cmu.model.HistoryItem;
 
+/**
+ * Author: Raina Qiu (yuluq)
+ */
 public class SecondFragment extends Fragment {
     private static final String PREFS_NAME = "joblens_prefs";
     private static final String KEY_USER_ID = "last_user_id";
