@@ -1,0 +1,6 @@
+.git
+.github
+.idea
+android-app
+backend/target
+**/*.iml

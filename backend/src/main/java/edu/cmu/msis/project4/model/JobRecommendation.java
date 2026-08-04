@@ -1,5 +1,8 @@
 package edu.cmu.msis.project4.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Author: Raina Qiu (yuluq)
  */
@@ -14,4 +17,7 @@ public class JobRecommendation {
     public String shareLink;
     public String workMode;
     public String employmentType;
+    public String description;
+    public int matchScore;
+    public List<String> matchReasons = new ArrayList<>();
 }

@@ -28,6 +28,7 @@ public class RecommendationService {
     private final MongoRepository repository = new MongoRepository();
     private final SerpApiClient serpApiClient = new SerpApiClient();
     private final LocationResolutionService locationResolutionService = new LocationResolutionService();
+    private final JobMatchingService jobMatchingService = new JobMatchingService();
 
     public RecommendationResponse recommend(RecommendationRequest request, ClientRequestContext clientContext)
             throws Exception {
@@ -56,10 +57,13 @@ public class RecommendationService {
             throw e;
         }
 
-        int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
+        int configuredMax = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
+        int maxReturned = request.limit == null ? configuredMax : Math.max(1, Math.min(configuredMax, request.limit));
         List<JobRecommendation> filtered = new ArrayList<>();
         Set<String> seenInThisResponse = new HashSet<>();
-        for (JobRecommendation job : aggregation.uniqueJobs.values()) {
+        List<JobRecommendation> ranked = jobMatchingService.rank(
+                new ArrayList<>(aggregation.uniqueJobs.values()), request);
+        for (JobRecommendation job : ranked) {
             if (filtered.size() >= maxReturned) {
                 break;
             }
@@ -70,7 +74,9 @@ public class RecommendationService {
                 continue;
             }
             filtered.add(job);
-            repository.saveRecommendationHistory(request.userId, job);
+            if (!Boolean.FALSE.equals(request.persistHistory)) {
+                repository.saveRecommendationHistory(request.userId, job);
+            }
         }
 
         RecommendationResponse response = new RecommendationResponse();

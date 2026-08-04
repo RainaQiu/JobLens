@@ -2,6 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+def configuredApiBaseUrl = providers.gradleProperty("joblensApiBaseUrl")
+        .orElse(providers.environmentVariable("JOBLENS_API_BASE_URL"))
+        .orElse("http://10.0.2.2:7999")
+        .get()
+def releaseKeystorePath = System.getenv("JOBLENS_KEYSTORE_PATH")
+
 android {
     namespace 'ds.edu.cmu'
     compileSdk {
@@ -16,14 +22,27 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0"
-        buildConfigField "String", "API_BASE_URL", "\"http://10.0.2.2:7999\""
+        buildConfigField "String", "API_BASE_URL", "\"${configuredApiBaseUrl}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseKeystorePath) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv("JOBLENS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("JOBLENS_KEY_ALIAS")
+                keyPassword System.getenv("JOBLENS_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            if (releaseKeystorePath) {
+                signingConfig signingConfigs.release
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

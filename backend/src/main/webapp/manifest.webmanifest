@@ -1,0 +1,9 @@
+{
+  "name": "JobLens AI",
+  "short_name": "JobLens",
+  "description": "Explainable resume-to-job matching and daily recommendations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ea",
+  "theme_color": "#17332e"
+}

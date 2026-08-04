@@ -46,6 +46,7 @@
     <string name="job_source_template">Apply via %1$s</string>
     <string name="job_meta_template">%1$s - %2$s</string>
     <string name="job_meta_single">%1$s</string>
+    <string name="job_match_score_template">%1$d%% profile match</string>
     <string name="history_recommended_template">Recommended on %1$s</string>
     <string name="button_previous_page">Previous</string>
     <string name="button_next_page">Next</string>

@@ -54,6 +54,8 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
         private final TextView textPostedAt;
         private final TextView textMeta;
         private final TextView textApplySource;
+        private final TextView textMatchScore;
+        private final TextView textMatchReasons;
         private final Button buttonApply;
 
         JobViewHolder(@NonNull View itemView) {
@@ -64,6 +66,8 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
             textPostedAt = itemView.findViewById(R.id.text_job_posted_at);
             textMeta = itemView.findViewById(R.id.text_job_meta);
             textApplySource = itemView.findViewById(R.id.text_job_apply_source);
+            textMatchScore = itemView.findViewById(R.id.text_job_match_score);
+            textMatchReasons = itemView.findViewById(R.id.text_job_match_reasons);
             buttonApply = itemView.findViewById(R.id.button_job_apply);
         }
 
@@ -88,6 +92,14 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
             String applySource = valueOrFallback(job == null ? "" : job.applySource,
                     itemView.getContext().getString(R.string.job_apply_source_fallback));
             textApplySource.setText(itemView.getContext().getString(R.string.job_source_template, applySource));
+            textMatchScore.setText(itemView.getContext().getString(R.string.job_match_score_template,
+                    job == null ? 0 : job.matchScore));
+            if (job == null || job.matchReasons == null || job.matchReasons.isEmpty()) {
+                textMatchReasons.setVisibility(View.GONE);
+            } else {
+                textMatchReasons.setVisibility(View.VISIBLE);
+                textMatchReasons.setText(String.join(" · ", job.matchReasons));
+            }
 
             String destination = primaryDestination(job);
             buttonApply.setEnabled(!blank(destination));

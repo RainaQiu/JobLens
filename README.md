@@ -1,128 +1,158 @@
 # JobLens AI
 
-JobLens AI is a mobile-to-cloud distributed application for personalized job discovery. The Android app collects a user's role, location, experience level, and search scope, then calls a Java Servlet backend that uses SerpAPI Google Jobs, stores history and operational logs in MongoDB Atlas, and exposes a dashboard for analytics.
+JobLens is an explainable job-matching system with a browser experience, a native Android client, and a Java cloud backend. A user can upload a PDF/DOCX resume, search fresh Google Jobs results, review a 0–100 match score with reasons, and subscribe to a daily email containing up to 10 new jobs.
+
+> Portfolio status: the product workflow is implemented and builds locally. A public demo URL and signed APK will appear in this README after the owner configures the external service credentials and completes the first deployment.
+
+## What is implemented
+
+- Resume text extraction from PDF, DOC/DOCX, and text files with Apache Tika.
+- Explainable NLP ranking using role-title alignment, resume/JD overlap, shared skills, and experience-level alignment.
+- Freshness filtering for jobs posted in the last seven days.
+- Per-user deduplication and recommendation history in MongoDB Atlas.
+- Nationwide U.S. fan-out across prioritized state-level SerpAPI searches.
+- Browser demo, native Android search/history UI, and an operations dashboard.
+- Installable web-app metadata for adding JobLens to an iPhone or Android home screen.
+- Daily Top 10 digest orchestration through GitHub Actions and a token-protected backend endpoint.
+- Email delivery through the Resend HTTPS API with a per-user/day idempotency key.
+- Docker deployment blueprint for Render and CI for the Java backend and Android app.
+- Signed Android APK release workflow for GitHub Releases.
+
+## Product flow
+
+```mermaid
+flowchart LR
+    U[User uploads resume] --> T[Apache Tika extracts text]
+    T --> P[Search profile]
+    P --> S[SerpAPI Google Jobs]
+    S --> F[7-day freshness + deduplication]
+    F --> R[Explainable NLP ranker]
+    R --> W[Web or Android results]
+    R --> M[(MongoDB history)]
+    G[GitHub Actions daily schedule] --> D[Protected digest endpoint]
+    D --> R
+    D --> E[Resend email: Top 10]
+```
+
+## Match score
+
+The current portfolio MVP uses a deterministic, auditable ranker rather than presenting a black-box score:
+
+- up to 50 points: target-role tokens aligned with the job title;
+- up to 25 points: resume language overlapping with the job description;
+- up to 20 points: shared technical skills;
+- 5 points: experience-level alignment.
+
+Each result includes `matchScore` and `matchReasons`. The ranker is isolated behind `JobMatchingService`, so an embedding or LLM reranker can be added and evaluated against the same test set later.
+
+## API
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Deployment health check |
+| `POST` | `/api/resumes/extract` | Extract text from a multipart resume upload (`resume`) |
+| `POST` | `/api/recommendations` | Search, rank, deduplicate, and return jobs |
+| `GET` | `/api/history?userId=...` | Return one user's recommendation history |
+| `POST` | `/api/subscriptions` | Upsert a daily-digest profile |
+| `POST` | `/api/digests/run` | Run all active digests; requires bearer token |
+| `GET` | `/dashboard` | View request and third-party API analytics |
+
+Example recommendation request:
+
+```json
+{
+  "userId": "demo-user",
+  "role": "Data Engineer",
+  "location": "United States",
+  "experienceLevel": "Entry level",
+  "searchScope": "NATIONWIDE_US",
+  "resumeText": "Python SQL Spark Airflow AWS ETL",
+  "limit": 10
+}
+```
+
+## Stack
+
+- Java 17, Servlets/JSP, Maven, Tomcat 9
+- MongoDB Atlas
+- SerpAPI Google Jobs
+- Apache Tika 3.3.2
+- Resend email API
+- Native Android (Java, Material components, OkHttp)
+- Docker, Render Blueprint, GitHub Actions
+
+## Local verification
+
+Backend:
+
+```bash
+mvn --file backend/pom.xml test
+```
+
+Android:
+
+```bash
+cd android-app
+./gradlew testDebugUnitTest assembleDebug
+```
+
+Set the Android API URL without editing source code:
+
+```bash
+./gradlew assembleDebug -PjoblensApiBaseUrl=https://your-api.example.com
+```
+
+## Deploy the public web/API demo
+
+Configure each service in its own dashboard, then copy only the values into Render's environment-variable form:
+
+| Service | Where to configure it | Value used by JobLens |
+| --- | --- | --- |
+| MongoDB Atlas | Atlas project → Database Access (create a least-privilege user), then Connect → Drivers | `MONGODB_URI` |
+| SerpAPI | SerpAPI dashboard → API Key | `SERPAPI_API_KEY` |
+| Resend | Resend dashboard → API Keys; verify a sending domain under Domains | `RESEND_API_KEY`, `DIGEST_FROM_EMAIL` |
+| Render | New → Blueprint → select this repo → Environment | all server variables in `.env.example` |
+| GitHub Actions | Repository Settings → Secrets and variables → Actions | `JOBLENS_API_URL`, `DIGEST_TRIGGER_TOKEN`, and APK signing secrets |
+
+In Render, create a Blueprint from this repository. `render.yaml` builds the root `Dockerfile` and checks `/api/health`. Copy the generated `DIGEST_TRIGGER_TOKEN` into the same-named GitHub Actions secret, then set `JOBLENS_API_URL` to the Render service origin, for example `https://joblens-api.onrender.com`. The Android release build should use the same origin through `JOBLENS_API_BASE_URL`.
+
+Render free services can sleep after inactivity, so the first request may be slower. The scheduled GitHub Actions request wakes the service before invoking the daily workflow.
+
+## Publish an installable Android APK without an app store
+
+The app is Android, so the downloadable package is an `.apk`; no Apple Developer Program membership is involved. The `release-apk.yml` workflow publishes a signed APK whenever a tag such as `v1.2.0` is pushed.
+
+For iPhone users, deploy the browser experience over HTTPS and use Safari's **Add to Home Screen** action. It opens in standalone web-app mode and avoids native iOS distribution fees.
+
+Configure these GitHub Actions secrets once:
+
+- `JOBLENS_API_BASE_URL`
+- `JOBLENS_KEYSTORE_BASE64`
+- `JOBLENS_KEYSTORE_PASSWORD`
+- `JOBLENS_KEY_ALIAS`
+- `JOBLENS_KEY_PASSWORD`
+
+Then create and push a version tag. The workflow attaches `JobLens-v1.2.0.apk` to a GitHub Release, which can be linked directly from a portfolio website. Users must allow installation from their browser/files app because the APK is distributed outside Google Play.
+
+## Privacy and operational notes
+
+- Secrets are environment variables and are excluded from Git.
+- Resume text is only persisted when a user explicitly subscribes to daily email.
+- The upload endpoint limits files to 5 MB and extracted text to 30,000 characters.
+- The digest trigger uses a constant-time bearer-token comparison.
+- Recommendation history is written only after the email provider accepts a digest, preventing failed sends from consuming unseen jobs.
+- Before a public launch, add authentication, delete/export controls, consent copy, rate limiting, and a retention policy for resume data.
+
+## Repository structure
+
+```text
+backend/       Java Servlet backend, web demo, dashboard, tests
+android-app/   Native Android client
+.github/       CI, daily digest, and APK release workflows
+Dockerfile     Reproducible Tomcat deployment
+render.yaml    Render infrastructure blueprint
+```
 
 ## Author
-- Name: Raina Qiu
-- Andrew ID: yuluq
 
-## Current MVP (v1.1)
-- Android search UI supports country, state, or city input.
-- Users can choose `Auto match`, `Specific place`, or `Nationwide U.S.` search scope.
-- The backend resolves free-form location text before searching.
-- If the request is `United States` or `Nationwide U.S.`, the backend expands the search into a prioritized multi-state U.S. search.
-- Results focus on concise, job-seeker-friendly cards: title, company, location, posted time, work mode, employment type, and a direct `Apply Now` action when available.
-- Search and history both use client-side pagination (10 items per page) with previous/next controls.
-- Recommendation history and mobile request logs are stored in MongoDB Atlas.
-- The dashboard shows analytics and formatted logs for mobile search activity.
-
-## Why the location logic matters
-Many official career sites force users to choose a specific state, even when the user really wants to stay anywhere in the United States. JobLens AI addresses that gap with two behaviors:
-
-- Specific searches: city/state/country text is normalized and used as a single search location.
-- Nationwide U.S. searches: the backend expands a U.S.-wide request into multiple state-level searches, merges the results, removes duplicates, and returns the best fresh jobs first.
-
-This keeps the mobile UI simple while letting the backend own the business logic.
-
-## Core recommendation rules
-- Freshness: only jobs posted in the last 7 days are eligible.
-- Deduplication: jobs already recommended to the same user are not shown again.
-- Location resolution: user input is normalized into a better search location when possible.
-- U.S. nationwide expansion: a broad U.S. search fans out into multiple state-level searches to improve geographic coverage.
-- Apply-first output: the backend prefers `apply_options` links from SerpAPI and falls back to a share page only when a direct apply link is unavailable.
-- Mobile pagination: the app displays search and history results in pages of 10 jobs.
-
-## Tech stack
-- Android Studio with Java Android client
-- Java 17
-- Java Servlets + JSP
-- Maven
-- MongoDB Atlas with `mongodb-driver-sync`
-- SerpAPI Google Jobs API
-- Tomcat 9 for local Servlet testing
-
-## Project structure
-- `backend/`
-  - `controller/` for servlets and dashboard routing
-  - `service/` for recommendation and location resolution logic
-  - `client/` for SerpAPI integration
-  - `repository/` for MongoDB reads and writes
-  - `model/` for request/response DTOs
-  - `src/main/webapp/WEB-INF/jsp/` for the dashboard JSP
-- `android-app/`
-  - native Android client
-  - RecyclerView-based results and history views
-- `.env.example`
-  - environment variable template
-- `docs/`
-  - screenshots, writeup, and submission materials
-
-## API endpoints
-- `POST /api/recommendations`
-  - Request JSON:
-    - `userId`
-    - `role`
-    - `location`
-    - `experienceLevel`
-    - `searchScope`
-  - Response JSON:
-    - `requestId`
-    - `recommendedCount`
-    - `jobs`
-    - `meta`
-- `GET /api/history?userId=...`
-  - Returns saved recommendations for one user
-- `GET /dashboard`
-  - Shows operations analytics and formatted logs
-
-## Data flow
-1. Android sends a recommendation request to the backend.
-2. The backend validates the request and resolves the location strategy.
-3. The backend calls SerpAPI Google Jobs one or more times.
-4. The backend filters for fresh jobs, merges results, and removes duplicates.
-5. Newly recommended jobs are written to MongoDB history.
-6. Request metadata and third-party API metrics are written to MongoDB logs.
-7. The backend returns concise JSON tailored for the Android UI.
-8. The dashboard reads MongoDB and displays analytics plus full formatted logs.
-
-## MongoDB usage
-MongoDB Atlas is used for persistent storage across restarts.
-
-Currently active collections:
-- `recommendation_history`
-  - stores the jobs already recommended to each user
-- `request_logs`
-  - stores mobile request metadata, resolved locations, third-party latency, and result counts
-
-The backend reads MongoDB configuration from real environment variables. It does not auto-load `.env`.
-
-## Required environment variables
-See `.env.example`.
-
-Important values:
-- `SERPAPI_API_KEY`
-- `MONGODB_URI`
-- `MAX_RESULTS_RETURNED`
-- `NATIONWIDE_US_MAX_STATES`
-- `NATIONWIDE_US_MIN_STATES`
-
-Notes:
-- Keep real secrets out of source control.
-- Set variables in your IntelliJ / Tomcat run configuration or in Codespaces.
-- `NATIONWIDE_US_MAX_STATES` controls how many prioritized U.S. state searches are used for a nationwide request.
-- `NATIONWIDE_US_MIN_STATES` controls the minimum number of state searches before early exit is allowed.
-- `MAX_RESULTS_RETURNED` defaults to `50`, so the app can paginate larger recommendation sets.
-
-## Local development
-- Open `backend/` in IntelliJ IDEA.
-- Run the backend on Tomcat 9 with environment variables configured.
-- Open `android-app/` in Android Studio.
-- For the Android emulator, the app currently targets `http://10.0.2.2:7999`.
-- If you deploy to Codespaces, replace `BuildConfig.API_BASE_URL` with the public forwarded HTTPS URL.
-
-## Notes for this course project
-- The backend uses Servlets, not JAX-RS.
-- The dashboard is intended for desktop/laptop browsers.
-- All important mobile requests are logged to MongoDB for analytics and grading visibility.
-- The project keeps business logic on the server so the Android app stays thin and focused on input/output.
-
+Raina Qiu · Carnegie Mellon University

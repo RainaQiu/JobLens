@@ -99,6 +99,7 @@ public class SerpApiClient {
             job.shareLink = getString(item, "share_link");
             job.workMode = getWorkMode(item);
             job.employmentType = getEmploymentType(item);
+            job.description = getString(item, "description");
             job.jobKey = buildJobKey(item, job);
 
             jobs.add(job);

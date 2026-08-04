@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17332e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="JobLens AI">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>JobLens AI — explainable job matching</title>
+  <style>
+    :root { --ink:#17332e; --teal:#087f6d; --mint:#dff5ec; --sand:#f7f3ea; --card:#fffefa; --line:#d9e3dc; --muted:#5d6e69; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--sand); font:16px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    header { padding:56px max(24px,calc((100vw - 1120px)/2)); background:var(--ink); color:white; }
+    header p { max-width:720px; color:#c9e8de; font-size:1.08rem; }
+    h1 { margin:0 0 12px; font-size:clamp(2.3rem,6vw,4.7rem); line-height:.98; letter-spacing:-.05em; }
+    main { width:min(1120px,calc(100% - 32px)); margin:32px auto 80px; display:grid; grid-template-columns:360px 1fr; gap:24px; align-items:start; }
+    .panel,.job { background:var(--card); border:1px solid var(--line); border-radius:20px; box-shadow:0 12px 40px rgba(23,51,46,.06); }
+    .panel { padding:22px; position:sticky; top:20px; }
+    label { display:block; margin:14px 0 6px; font-weight:700; font-size:.9rem; }
+    input,select { width:100%; min-height:46px; padding:10px 12px; border:1px solid #b9c9c2; border-radius:10px; background:white; color:var(--ink); font:inherit; }
+    input[type=file] { padding:9px; }
+    button,.button { display:inline-flex; justify-content:center; align-items:center; min-height:46px; padding:10px 16px; border:0; border-radius:999px; background:var(--teal); color:white; font-weight:800; cursor:pointer; text-decoration:none; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .secondary { background:transparent; color:var(--teal); border:1px solid var(--teal); }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
+    #status { min-height:24px; margin:14px 0 0; color:var(--muted); font-size:.9rem; }
+    .results-head { display:flex; justify-content:space-between; gap:16px; align-items:end; margin:0 4px 16px; }
+    .results-head h2 { margin:0; font-size:1.6rem; }
+    #jobs { display:grid; gap:14px; }
+    .job { padding:20px; display:grid; grid-template-columns:1fr auto; gap:14px; }
+    .job h3 { margin:0; font-size:1.18rem; }
+    .meta { color:var(--muted); margin:5px 0 12px; }
+    .reason { display:inline-block; margin:4px 5px 0 0; padding:5px 9px; border-radius:99px; background:var(--mint); color:#075f52; font-size:.78rem; }
+    .score { width:72px; height:72px; border-radius:50%; display:grid; place-items:center; background:var(--mint); color:#075f52; font-size:1.05rem; font-weight:900; }
+    .apply { margin-top:14px; }
+    .empty { padding:60px 24px; text-align:center; border:1px dashed #aebeb7; border-radius:20px; color:var(--muted); }
+    .privacy { margin-top:8px; color:var(--muted); font-size:.75rem; }
+    @media (max-width:820px) { main { grid-template-columns:1fr; } .panel { position:static; } header { padding-top:40px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Job search,<br>with a point of view.</h1>
+    <p>Upload a resume, search fresh U.S. roles, and see an explainable match score instead of an opaque list. Subscribe to receive up to 10 new, deduplicated matches each day.</p>
+  </header>
+  <main>
+    <form class="panel" id="search-form">
+      <strong>Build your search profile</strong>
+      <label for="resume">Resume (PDF or DOCX)</label>
+      <input id="resume" name="resume" type="file" accept=".pdf,.doc,.docx,.txt">
+      <div class="privacy">Text is extracted for matching. Daily subscriptions store the extracted text in MongoDB.</div>
+      <label for="role">Target role</label>
+      <input id="role" required value="Data Engineer" placeholder="e.g. AI Agent Engineer">
+      <label for="location">Location</label>
+      <input id="location" required value="United States" placeholder="e.g. New York, NY">
+      <label for="scope">Search scope</label>
+      <select id="scope"><option value="AUTO">Auto match</option><option value="SPECIFIC">Specific place</option><option value="NATIONWIDE_US" selected>Nationwide U.S.</option></select>
+      <label for="experience">Experience</label>
+      <select id="experience"><option>Any</option><option selected>Entry level</option><option>Internship</option><option>Senior</option></select>
+      <label for="email">Email for daily Top 10</label>
+      <input id="email" type="email" placeholder="you@example.com">
+      <div class="actions"><button id="search" type="submit">Find matches</button><button id="subscribe" class="secondary" type="button">Subscribe</button></div>
+      <p id="status" role="status" aria-live="polite">Ready when you are.</p>
+    </form>
+    <section>
+      <div class="results-head"><div><h2>Your ranked matches</h2><span id="summary">Fresh roles from Google Jobs via SerpAPI</span></div><a class="button secondary" href="dashboard">Ops dashboard</a></div>
+      <div id="jobs"><div class="empty">Add your resume and run a search to see match scores and reasons.</div></div>
+    </section>
+  </main>
+  <script>
+    const state={resumeText:'',userId:localStorage.joblensUserId||crypto.randomUUID()};
+    localStorage.joblensUserId=state.userId;
+    const $=id=>document.getElementById(id);
+    async function json(response){const body=await response.json();if(!response.ok)throw new Error(body.error||`Request failed (${response.status})`);return body;}
+    async function ensureResume(){const file=$('resume').files[0];if(!file)return state.resumeText;if(state.resumeFile===`${file.name}:${file.size}`)return state.resumeText;setStatus('Reading your resume…');const form=new FormData();form.append('resume',file);const data=await fetch('api/resumes/extract',{method:'POST',body:form}).then(json);state.resumeText=data.text;state.resumeFile=`${file.name}:${file.size}`;return state.resumeText;}
+    function profile(){return {userId:state.userId,email:$('email').value.trim(),role:$('role').value.trim(),location:$('location').value.trim(),experienceLevel:$('experience').value,searchScope:$('scope').value,resumeText:state.resumeText,active:true};}
+    function setStatus(message){$('status').textContent=message;}
+    function escapeHtml(value=''){const div=document.createElement('div');div.textContent=value;return div.innerHTML;}
+    function safeUrl(value=''){try{const url=new URL(value,location.origin);return ['http:','https:'].includes(url.protocol)?url.href:'#';}catch{return '#';}}
+    function renderJobs(data){$('summary').textContent=data.meta?.searchSummary||`${data.recommendedCount} roles ranked`;$('jobs').innerHTML=data.jobs?.length?data.jobs.map(job=>`<article class="job"><div><h3>${escapeHtml(job.title)}</h3><p class="meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.postedAt)}</p><div>${(job.matchReasons||[]).map(r=>`<span class="reason">${escapeHtml(r)}</span>`).join('')}</div><a class="button apply" href="${escapeHtml(safeUrl(job.applyLink))}" target="_blank" rel="noopener">Apply now</a></div><div class="score" aria-label="${job.matchScore} percent match">${job.matchScore}%</div></article>`).join(''):'<div class="empty">No unseen jobs matched this search. Try another role or location.</div>';}
+    $('search-form').addEventListener('submit',async event=>{event.preventDefault();$('search').disabled=true;try{await ensureResume();setStatus('Searching and ranking fresh jobs…');const data=await fetch('api/recommendations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(profile())}).then(json);renderJobs(data);setStatus(`Ranked ${data.recommendedCount} new matches.`);}catch(error){setStatus(error.message);}finally{$('search').disabled=false;}});
+    $('subscribe').addEventListener('click',async()=>{$('subscribe').disabled=true;try{await ensureResume();if(!$('email').value.trim())throw new Error('Enter an email address first.');await fetch('api/subscriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(profile())}).then(json);setStatus('Subscribed. Your daily digest will contain up to 10 new matches.');}catch(error){setStatus(error.message);}finally{$('subscribe').disabled=false;}});
+    if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: joblens-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DIGEST_FROM_EMAIL
+        sync: false
+      - key: DIGEST_TRIGGER_TOKEN
+        generateValue: true
+      - key: MAX_RESULTS_RETURNED
+        value: "50"
+      - key: NATIONWIDE_US_MAX_STATES
+        value: "12"
+      - key: NATIONWIDE_US_MIN_STATES
+        value: "4"
