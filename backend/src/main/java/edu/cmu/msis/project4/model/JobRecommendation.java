@@ -20,4 +20,8 @@ public class JobRecommendation {
     public String description;
     public int matchScore;
     public List<String> matchReasons = new ArrayList<>();
+    public Integer llmMatchScore;
+    public String llmRationale;
+    public String resumeAdvice;
+    public boolean llmEvaluated;
 }

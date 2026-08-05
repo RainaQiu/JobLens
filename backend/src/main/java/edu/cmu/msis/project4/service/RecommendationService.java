@@ -29,6 +29,7 @@ public class RecommendationService {
     private final SerpApiClient serpApiClient = new SerpApiClient();
     private final LocationResolutionService locationResolutionService = new LocationResolutionService();
     private final JobMatchingService jobMatchingService = new JobMatchingService();
+    private final LlmReranker llmReranker = new LlmReranker();
 
     public RecommendationResponse recommend(RecommendationRequest request, ClientRequestContext clientContext)
             throws Exception {
@@ -63,6 +64,7 @@ public class RecommendationService {
         Set<String> seenInThisResponse = new HashSet<>();
         List<JobRecommendation> ranked = jobMatchingService.rank(
                 new ArrayList<>(aggregation.uniqueJobs.values()), request);
+        ranked = llmReranker.rerank(ranked, request);
         for (JobRecommendation job : ranked) {
             if (filtered.size() >= maxReturned) {
                 break;

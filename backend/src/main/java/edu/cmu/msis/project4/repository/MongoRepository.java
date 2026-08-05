@@ -58,6 +58,10 @@ public class MongoRepository {
                 .append("description", job.description)
                 .append("matchScore", job.matchScore)
                 .append("matchReasons", job.matchReasons)
+                .append("llmMatchScore", job.llmMatchScore)
+                .append("llmRationale", job.llmRationale)
+                .append("resumeAdvice", job.resumeAdvice)
+                .append("llmEvaluated", job.llmEvaluated)
                 .append("recommendedAt", Instant.now().toString())
                 .append("source", "google_jobs");
         historyCollection.insertOne(doc);

@@ -57,6 +57,9 @@ public class EmailService {
             if (job.matchReasons != null && !job.matchReasons.isEmpty()) {
                 html.append("<p>").append(escape(String.join(" · ", job.matchReasons))).append("</p>");
             }
+            if (job.resumeAdvice != null && !job.resumeAdvice.isBlank()) {
+                html.append("<p><strong>Resume tip:</strong> ").append(escape(job.resumeAdvice)).append("</p>");
+            }
             html.append("<a href=\"").append(escapeAttribute(job.applyLink)).append("\">Apply now</a></section>");
         }
         return html.toString();

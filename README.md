@@ -8,6 +8,7 @@ JobLens is an explainable job-matching system with a browser experience, a nativ
 
 - Resume text extraction from PDF, DOC/DOCX, and text files with Apache Tika.
 - Explainable NLP ranking using role-title alignment, resume/JD overlap, shared skills, and experience-level alignment.
+- Optional OpenAI-compatible LLM reranking for transferable-skill judgment and two-sentence resume advice; Qwen and Gemini can use the same adapter.
 - Freshness filtering for jobs posted in the last seven days.
 - Per-user deduplication and recommendation history in MongoDB Atlas.
 - Nationwide U.S. fan-out across prioritized state-level SerpAPI searches.
@@ -43,7 +44,23 @@ The current portfolio MVP uses a deterministic, auditable ranker rather than pre
 - up to 20 points: shared technical skills;
 - 5 points: experience-level alignment.
 
-Each result includes `matchScore` and `matchReasons`. The ranker is isolated behind `JobMatchingService`, so an embedding or LLM reranker can be added and evaluated against the same test set later.
+Each result includes `matchScore` and `matchReasons`. The ranker is isolated behind `JobMatchingService`, and the optional `LlmReranker` can be evaluated against the same test set.
+
+When `QWEN_API_KEY`, `QWEN_BASE_URL`, and `QWEN_MODEL` are all set, the backend sends only the top 20 deterministic candidates to the configured OpenAI-compatible model. The model can recognize transferable experience that does not share exact resume keywords, add a concise rationale, and produce a truthful two-sentence resume tip. The deterministic score remains the fallback when the provider is disabled, unavailable, or returns invalid JSON.
+
+Example provider settings:
+
+```text
+# Qwen Model Studio (US Virginia)
+QWEN_BASE_URL=https://dashscope-us.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-plus
+
+# Or Gemini OpenAI compatibility
+QWEN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+QWEN_MODEL=gemini-3.1-flash-lite
+```
+
+Gemini currently offers a free tier with model- and quota-specific limits; Google documents the free/paid pricing and data-handling differences on its pricing page. Qwen Model Studio also documents OpenAI-compatible endpoints and free quotas for some new users/regions. For a portfolio demo, start with the provider that gives you the most reliable quota in your deployment region, then keep the provider fields secret and monitor spend.
 
 ## API
 
@@ -137,7 +154,7 @@ Then create and push a version tag. The workflow attaches `JobLens-v1.2.0.apk` t
 ## Privacy and operational notes
 
 - Secrets are environment variables and are excluded from Git.
-- Resume text is only persisted when a user explicitly subscribes to daily email.
+- Resume text is only persisted when a user explicitly subscribes to daily email. If LLM reranking is enabled, resume text and top candidates are sent to the configured provider for semantic review.
 - The upload endpoint limits files to 5 MB and extracted text to 30,000 characters.
 - The digest trigger uses a constant-time bearer-token comparison.
 - Recommendation history is written only after the email provider accepts a digest, preventing failed sends from consuming unseen jobs.
