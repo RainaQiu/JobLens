@@ -3,43 +3,70 @@ package edu.cmu.msis.project4.service;
 import edu.cmu.msis.project4.client.SerpApiClient;
 import edu.cmu.msis.project4.config.AppConfig;
 import edu.cmu.msis.project4.model.ClientRequestContext;
+import edu.cmu.msis.project4.model.EligibilityDecision;
 import edu.cmu.msis.project4.model.HistoryItem;
 import edu.cmu.msis.project4.model.JobRecommendation;
 import edu.cmu.msis.project4.model.RecommendationRequest;
 import edu.cmu.msis.project4.model.RecommendationResponse;
 import edu.cmu.msis.project4.model.ResolvedLocation;
+import edu.cmu.msis.project4.model.SearchProfile;
 import edu.cmu.msis.project4.repository.MongoRepository;
+import edu.cmu.msis.project4.repository.RecommendationRepository;
 import org.bson.Document;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.HashSet;
 
-/**
- * Author: Raina Qiu (yuluq)
- */
+/** Orchestrates profile expansion, eligibility filtering, ranking, and persistence. */
 public class RecommendationService {
-    private final MongoRepository repository = new MongoRepository();
-    private final SerpApiClient serpApiClient = new SerpApiClient();
-    private final LocationResolutionService locationResolutionService = new LocationResolutionService();
-    private final JobMatchingService jobMatchingService = new JobMatchingService();
-    private final LlmReranker llmReranker = new LlmReranker();
+    private final RecommendationRepository repository;
+    private final SerpApiClient serpApiClient;
+    private final LocationResolutionService locationResolutionService;
+    private final RoleProfileExpander roleProfileExpander;
+    private final JobEligibilityFilter eligibilityFilter;
+    private final JobMatchingService jobMatchingService;
+    private final LlmReranker llmReranker;
+
+    public RecommendationService() {
+        this(new MongoRepository(), new SerpApiClient(), new LocationResolutionService(),
+                new RoleProfileExpander(), new JobEligibilityFilter(), new JobMatchingService(), new LlmReranker());
+    }
+
+    RecommendationService(
+            RecommendationRepository repository,
+            SerpApiClient serpApiClient,
+            LocationResolutionService locationResolutionService,
+            RoleProfileExpander roleProfileExpander,
+            JobEligibilityFilter eligibilityFilter,
+            JobMatchingService jobMatchingService,
+            LlmReranker llmReranker) {
+        this.repository = repository;
+        this.serpApiClient = serpApiClient;
+        this.locationResolutionService = locationResolutionService;
+        this.roleProfileExpander = roleProfileExpander;
+        this.eligibilityFilter = eligibilityFilter;
+        this.jobMatchingService = jobMatchingService;
+        this.llmReranker = llmReranker;
+    }
 
     public RecommendationResponse recommend(RecommendationRequest request, ClientRequestContext clientContext)
             throws Exception {
         validate(request);
 
         String requestId = "req_" + UUID.randomUUID();
+        SearchProfile profile = SearchProfile.from(request, roleProfileExpander);
         ResolvedLocation resolvedLocation = locationResolutionService.resolve(request.location, request.searchScope);
         SearchAggregation aggregation;
         try {
-            aggregation = searchAcrossLocations(request, resolvedLocation);
+            aggregation = searchAcrossLocations(profile, resolvedLocation);
         } catch (ThirdPartyApiException e) {
             repository.saveLog(buildBaseLog(requestId, request, clientContext, resolvedLocation)
                     .append("thirdPartyStatus", e.getStatusCode())
@@ -58,13 +85,29 @@ public class RecommendationService {
             throw e;
         }
 
+        List<JobRecommendation> eligible = new ArrayList<>();
+        for (JobRecommendation job : aggregation.uniqueJobs.values()) {
+            EligibilityDecision decision = eligibilityFilter.evaluate(job, profile, resolvedLocation);
+            job.eligibilityStatus = decision.status.name();
+            job.eligibilityReasons = new ArrayList<>(decision.reasons);
+            job.detectedCareerTrack = decision.detectedCareerTrack.name();
+            job.detectedSpecialization = decision.specialization;
+            if (decision.status != EligibilityDecision.Status.FAIL) {
+                eligible.add(job);
+            }
+        }
+
+        List<JobRecommendation> ranked = jobMatchingService.rank(eligible, request, profile);
+        ranked = llmReranker.rerank(ranked, request, profile);
+        ranked.sort(Comparator.<JobRecommendation>comparingInt(job ->
+                        "PASS".equals(job.eligibilityStatus) ? 1 : 0).reversed()
+                .thenComparing(Comparator.comparingInt((JobRecommendation job) -> job.matchScore).reversed())
+                .thenComparing(job -> safe(job.postedAt)));
+
         int configuredMax = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
         int maxReturned = request.limit == null ? configuredMax : Math.max(1, Math.min(configuredMax, request.limit));
         List<JobRecommendation> filtered = new ArrayList<>();
         Set<String> seenInThisResponse = new HashSet<>();
-        List<JobRecommendation> ranked = jobMatchingService.rank(
-                new ArrayList<>(aggregation.uniqueJobs.values()), request);
-        ranked = llmReranker.rerank(ranked, request);
         for (JobRecommendation job : ranked) {
             if (filtered.size() >= maxReturned) {
                 break;
@@ -92,6 +135,12 @@ public class RecommendationService {
         response.meta.searchSummary = buildSearchSummary(resolvedLocation, aggregation.searchedLocations.size());
         response.meta.searchedLocationsCount = aggregation.searchedLocations.size();
         response.meta.jobsWithApplyLinks = countJobsWithApplyLinks(filtered);
+        response.meta.rawCandidateCount = aggregation.uniqueJobs.size();
+        response.meta.eligibleCount = eligible.size();
+        response.meta.filteredCount = aggregation.uniqueJobs.size() - eligible.size();
+        response.meta.llmEvaluatedCount = countLlmEvaluated(ranked);
+        response.meta.careerTrack = profile.careerTrack.name();
+        response.meta.scoringVersion = "hybrid-v1";
 
         repository.saveLog(buildBaseLog(requestId, request, clientContext, resolvedLocation)
                 .append("thirdPartyStatus", aggregation.statusCode)
@@ -99,6 +148,9 @@ public class RecommendationService {
                 .append("thirdPartyCallCount", aggregation.thirdPartyCallCount)
                 .append("thirdPartyResultCount", aggregation.thirdPartyResultCount)
                 .append("returnedCount", filtered.size())
+                .append("eligibleCount", eligible.size())
+                .append("filteredCount", response.meta.filteredCount)
+                .append("llmEvaluatedCount", response.meta.llmEvaluatedCount)
                 .append("jobsWithApplyLinks", response.meta.jobsWithApplyLinks)
                 .append("searchedLocationsCount", aggregation.searchedLocations.size())
                 .append("searchedLocations", String.join(" | ", aggregation.searchedLocations))
@@ -168,6 +220,8 @@ public class RecommendationService {
                 .append("userId", request.userId)
                 .append("inputRole", request.role)
                 .append("inputLocation", request.location)
+                .append("inputCareerTrack", request.careerTrack)
+                .append("inputSpecialization", request.specialization)
                 .append("inputExperienceLevel", request.experienceLevel)
                 .append("inputSearchScope", normalizeScope(request.searchScope))
                 .append("resolvedLocation", safeLocation.resolvedLabel == null ? "" : safeLocation.resolvedLabel)
@@ -180,37 +234,52 @@ public class RecommendationService {
                 .append("createdAt", Instant.now().toString());
     }
 
-    private SearchAggregation searchAcrossLocations(RecommendationRequest request, ResolvedLocation resolvedLocation)
+    private SearchAggregation searchAcrossLocations(SearchProfile profile, ResolvedLocation resolvedLocation)
             throws Exception {
         SearchAggregation aggregation = new SearchAggregation();
         int maxReturned = Integer.parseInt(AppConfig.get("MAX_RESULTS_RETURNED", "50"));
-        int minNationwideQueries = Integer.parseInt(AppConfig.get("NATIONWIDE_US_MIN_STATES", "4"));
+        int minNationwideLocations = Integer.parseInt(AppConfig.get("NATIONWIDE_US_MIN_STATES", "4"));
         ThirdPartyApiException lastFailure = null;
+        List<String> queryVariants = profile.queryVariants == null || profile.queryVariants.isEmpty()
+                ? List.of(profile.role) : profile.queryVariants;
 
         for (String location : resolvedLocation.searchLocations) {
-            try {
-                SerpApiClient.FetchResult fetchResult =
-                        serpApiClient.searchJobs(request.role, location, request.experienceLevel);
-                aggregation.statusCode = fetchResult.statusCode;
-                aggregation.totalLatencyMs += fetchResult.latencyMs;
-                aggregation.thirdPartyCallCount++;
-                aggregation.thirdPartyResultCount += fetchResult.jobs.size();
+            boolean locationSucceeded = false;
+            for (String queryVariant : queryVariants) {
+                try {
+                    SerpApiClient.FetchResult fetchResult = serpApiClient.searchJobs(
+                            queryVariant, location, profile.careerTrack);
+                    aggregation.statusCode = fetchResult.statusCode;
+                    aggregation.totalLatencyMs += fetchResult.latencyMs;
+                    aggregation.thirdPartyCallCount++;
+                    aggregation.thirdPartyResultCount += fetchResult.jobs.size();
+                    locationSucceeded = true;
+
+                    for (JobRecommendation job : fetchResult.jobs) {
+                        if (job != null && job.jobKey != null && !job.jobKey.isBlank()) {
+                            aggregation.uniqueJobs.putIfAbsent(job.jobKey, job);
+                        }
+                    }
+
+                    if (aggregation.uniqueJobs.size() >= maxReturned
+                            && (!resolvedLocation.isMultiLocation()
+                            || aggregation.searchedLocations.size() >= minNationwideLocations)) {
+                        break;
+                    }
+                } catch (ThirdPartyApiException e) {
+                    lastFailure = e;
+                    if (!resolvedLocation.isMultiLocation() || isFatalThirdPartyStatus(e.getStatusCode())) {
+                        throw e;
+                    }
+                }
+            }
+            if (locationSucceeded) {
                 aggregation.searchedLocations.add(location.replace(",", ", "));
-
-                for (JobRecommendation job : fetchResult.jobs) {
-                    aggregation.uniqueJobs.putIfAbsent(job.jobKey, job);
-                }
-
-                if (resolvedLocation.isMultiLocation()
-                        && aggregation.searchedLocations.size() >= minNationwideQueries
-                        && aggregation.uniqueJobs.size() >= maxReturned * 2) {
-                    break;
-                }
-            } catch (ThirdPartyApiException e) {
-                lastFailure = e;
-                if (!resolvedLocation.isMultiLocation() || isFatalThirdPartyStatus(e.getStatusCode())) {
-                    throw e;
-                }
+            }
+            if (resolvedLocation.isMultiLocation()
+                    && aggregation.searchedLocations.size() >= minNationwideLocations
+                    && aggregation.uniqueJobs.size() >= maxReturned * 2) {
+                break;
             }
         }
 
@@ -228,6 +297,16 @@ public class RecommendationService {
         int count = 0;
         for (JobRecommendation job : jobs) {
             if (job != null && job.applyLink != null && !job.applyLink.isBlank()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countLlmEvaluated(List<JobRecommendation> jobs) {
+        int count = 0;
+        for (JobRecommendation job : jobs) {
+            if (job != null && job.llmEvaluated) {
                 count++;
             }
         }
@@ -261,6 +340,10 @@ public class RecommendationService {
             return normalized;
         }
         return LocationResolutionService.SCOPE_AUTO;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private static class SearchAggregation {

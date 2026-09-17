@@ -48,7 +48,8 @@ public class EmailService {
 
     String renderHtml(List<JobRecommendation> jobs) {
         StringBuilder html = new StringBuilder("<h1>Your JobLens matches</h1>")
-                .append("<p>Fresh roles ranked against your profile. Review the score, then apply directly.</p>");
+                .append("<p>We found ").append(jobs.size())
+                .append(" fresh roles ranked against your profile. Review the score, then apply directly.</p>");
         for (JobRecommendation job : jobs) {
             html.append("<section style=\"margin:20px 0;padding:16px;border:1px solid #d8e2dc;border-radius:12px\">")
                     .append("<h2 style=\"margin:0\">").append(escape(job.title)).append("</h2>")

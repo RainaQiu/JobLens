@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import edu.cmu.msis.project4.config.AppConfig;
+import edu.cmu.msis.project4.model.CareerTrack;
 import edu.cmu.msis.project4.model.JobRecommendation;
 import edu.cmu.msis.project4.service.ThirdPartyApiException;
 
@@ -31,11 +32,11 @@ public class SerpApiClient {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    public FetchResult searchJobs(String role, String location, String experienceLevel)
+    public FetchResult searchJobs(String role, String location, CareerTrack careerTrack)
             throws IOException, InterruptedException, ThirdPartyApiException {
         String baseUrl = AppConfig.get("SERPAPI_BASE_URL", "https://serpapi.com/search.json");
         String apiKey = AppConfig.getRequired("SERPAPI_API_KEY");
-        String query = buildQuery(role, experienceLevel);
+        String query = buildQuery(role, careerTrack);
 
         StringBuilder url = new StringBuilder(baseUrl)
                 .append("?engine=").append(encode(AppConfig.get("SERPAPI_ENGINE", "google_jobs")))
@@ -72,6 +73,12 @@ public class SerpApiClient {
                     latency,
                     "third_party_invalid_data");
         }
+    }
+
+    /** Backward-compatible overload for older callers that still send experienceLevel. */
+    public FetchResult searchJobs(String role, String location, String experienceLevel)
+            throws IOException, InterruptedException, ThirdPartyApiException {
+        return searchJobs(role, location, CareerTrack.parse(null, experienceLevel));
     }
 
     private List<JobRecommendation> parseJobs(String rawJson) {
@@ -284,11 +291,13 @@ public class SerpApiClient {
         return value == null ? "" : value.trim().toLowerCase(Locale.US).replaceAll("\\s+", " ");
     }
 
-    private String buildQuery(String role, String experienceLevel) {
+    private String buildQuery(String role, CareerTrack careerTrack) {
         StringBuilder query = new StringBuilder();
         query.append(role == null ? "" : role.trim());
-        if (experienceLevel != null && !experienceLevel.isBlank() && !"Any".equalsIgnoreCase(experienceLevel.trim())) {
-            query.append(' ').append(experienceLevel.trim());
+        if (careerTrack == CareerTrack.INTERNSHIP) {
+            query.append(" internship");
+        } else if (careerTrack == CareerTrack.NEW_GRADUATE) {
+            query.append(" new graduate early career");
         }
         return query.toString().trim();
     }

@@ -160,19 +160,19 @@ public class LlmReranker {
             RecommendationRequest request,
             SearchProfile profile) {
         StringBuilder prompt = new StringBuilder("TARGET ROLE: ").append(safe(request == null ? null : request.role))
-                .append("\\nROLE FAMILY: ").append(safe(profile == null ? null : profile.roleFamily))
-                .append("\\nSPECIALIZATION: ").append(safe(profile == null ? null : profile.specialization))
-                .append("\\nCAREER TRACK: ").append(profile == null ? "ANY" : profile.careerTrack)
-                .append("\\nRESUME:\\n").append(truncate(request == null ? null : request.resumeText, MAX_RESUME_CHARS))
-                .append("\\n\\nJOBS:\\n");
+                .append("\nROLE FAMILY: ").append(safe(profile == null ? null : profile.roleFamily))
+                .append("\nSPECIALIZATION: ").append(safe(profile == null ? null : profile.specialization))
+                .append("\nCAREER TRACK: ").append(profile == null ? "ANY" : profile.careerTrack)
+                .append("\nRESUME:\n").append(truncate(request == null ? null : request.resumeText, MAX_RESUME_CHARS))
+                .append("\n\nJOBS:\n");
         for (JobRecommendation job : jobs) {
             prompt.append("JOB KEY: ").append(job.jobKey)
-                    .append("\\nTITLE: ").append(job.title)
-                    .append("\\nCOMPANY: ").append(job.company)
-                    .append("\\nLOCATION: ").append(job.location)
-                    .append("\\nDETERMINISTIC SCORE: ").append(job.deterministicScore)
-                    .append("\\nDESCRIPTION: ").append(truncate(job.description, MAX_DESCRIPTION_CHARS))
-                    .append("\\n---\\n");
+                    .append("\nTITLE: ").append(job.title)
+                    .append("\nCOMPANY: ").append(job.company)
+                    .append("\nLOCATION: ").append(job.location)
+                    .append("\nDETERMINISTIC SCORE: ").append(job.deterministicScore)
+                    .append("\nDESCRIPTION: ").append(truncate(job.description, MAX_DESCRIPTION_CHARS))
+                    .append("\n---\n");
         }
         return prompt.toString();
     }

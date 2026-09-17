@@ -57,7 +57,9 @@
 - `backend/src/main/java/edu/cmu/msis/project4/client/SerpApiClient.java` — accept an expanded role query and normalized career-track tokens without duplicating them.
 - `backend/src/main/java/edu/cmu/msis/project4/model/UserPreference.java` — persist `careerTrack` and optional `specialization` for daily digests.
 - `backend/src/main/java/edu/cmu/msis/project4/repository/MongoRepository.java` — read/write persisted career-track fields and new score/advice fields.
+- `backend/src/main/java/edu/cmu/msis/project4/repository/RecommendationRepository.java` — persistence seam used to test the recommendation orchestration without MongoDB.
 - `backend/src/main/java/edu/cmu/msis/project4/service/DailyDigestService.java` — map saved preferences to the new request fields and select the score threshold.
+- `backend/src/main/java/edu/cmu/msis/project4/service/EmailService.java` — include the actual number of qualifying jobs in the digest body.
 - `backend/src/main/webapp/index.html` — send `careerTrack`, expose the three options, and render eligibility, score explanations, transferable skills, and concrete resume advice.
 - `backend/src/test/java/edu/cmu/msis/project4/service/JobMatchingServiceTest.java` — assert component weights, role-specialization behavior, required/preferred skill separation, and score bounds.
 - `android-app/app/src/main/java/ds/edu/cmu/FirstFragment.java` — send the new career-track value and preserve saved selections.
@@ -289,36 +291,36 @@ git commit -m "feat: add DeepSeek semantic match review"
 - Test: `backend/src/test/java/edu/cmu/msis/project4/service/RecommendationPipelineTest.java`
 
 **Interfaces:**
-- `RecommendationService` production constructor keeps the no-argument form; a package-private constructor accepts `MongoRepository`, `SerpApiClient`, `LocationResolutionService`, `RoleProfileExpander`, `JobEligibilityFilter`, `JobMatchingService`, and `LlmReranker` for deterministic orchestration tests.
+- `RecommendationService` production constructor keeps the no-argument form; a package-private constructor accepts `RecommendationRepository`, `SerpApiClient`, `LocationResolutionService`, `RoleProfileExpander`, `JobEligibilityFilter`, `JobMatchingService`, and `LlmReranker` for deterministic orchestration tests.
 - `SerpApiClient.searchJobs(String queryVariant, String location, CareerTrack careerTrack)` builds one encoded Google Jobs query and never appends a duplicate track token.
 
-- [ ] **Step 1: Write a pipeline test with fakes.** Return synthetic internship, new-grad, senior, Android, and Platform jobs from a fake SerpAPI client. Assert the service filters before ranking, calls the LLM only with eligible top candidates, deduplicates by `jobKey`, and persists only returned unseen jobs.
+- [x] **Step 1: Write a pipeline test with fakes.** Return synthetic internship, new-grad, senior, Android, and Platform jobs from a fake SerpAPI client. Assert the service filters before ranking, calls the LLM only with eligible top candidates, deduplicates by `jobKey`, and persists only returned unseen jobs.
 
-- [ ] **Step 2: Run the pipeline test.**
+- [x] **Step 2: Run the pipeline test.**
 
 Run: `mvn --file backend/pom.xml -Dtest=RecommendationPipelineTest test`
 
 Expected: FAIL because the current service calls ranking before eligibility and constructs dependencies internally.
 
-- [ ] **Step 3: Add dependency injection seams.** Keep the existing no-arg constructor for Tomcat and add the package-private constructor used by tests. Do not change endpoint signatures.
+- [x] **Step 3: Add dependency injection seams.** Keep the existing no-arg constructor for Tomcat and add the package-private constructor used by tests. Do not change endpoint signatures.
 
-- [ ] **Step 4: Implement retrieval expansion.** For each resolved location, run at most three role query variants, deduplicate immediately, stop once the configured candidate cap is reached, and retain current nationwide state fan-out limits.
+- [x] **Step 4: Implement retrieval expansion.** For each resolved location, run at most three role query variants, deduplicate immediately, stop once the configured candidate cap is reached, and retain current nationwide state fan-out limits.
 
-- [ ] **Step 5: Implement the ordered pipeline.** Normalize request, expand profile, retrieve, deduplicate, evaluate eligibility, discard only `FAIL`, rank all `PASS`/`UNKNOWN`, send the top 20 eligible jobs to `LlmReranker`, sort blended results, apply history deduplication, and save history only for returned jobs.
+- [x] **Step 5: Implement the ordered pipeline.** Normalize request, expand profile, retrieve, deduplicate, evaluate eligibility, discard only `FAIL`, rank all `PASS`/`UNKNOWN`, send the top 20 eligible jobs to `LlmReranker`, sort blended results, apply history deduplication, and save history only for returned jobs.
 
-- [ ] **Step 6: Add response metadata.** Populate `rawCandidateCount`, `eligibleCount`, `filteredCount`, `llmEvaluatedCount`, `scoringVersion`, `careerTrack`, and the existing search metadata.
+- [x] **Step 6: Add response metadata.** Populate `rawCandidateCount`, `eligibleCount`, `filteredCount`, `llmEvaluatedCount`, `scoringVersion`, `careerTrack`, and the existing search metadata.
 
-- [ ] **Step 7: Persist and load the new digest fields.** Store `careerTrack` and `specialization` in `MongoRepository.savePreference`, read them in `activePreferences`, and map them in `DailyDigestService.toRequest`; fall back to the saved `experienceLevel` alias for older subscriptions. Store the new component scores and bullet-advice fields alongside the existing recommendation history document.
+- [x] **Step 7: Persist and load the new digest fields.** Store `careerTrack` and `specialization` in `MongoRepository.savePreference`, read them in `activePreferences`, and map them in `DailyDigestService.toRequest`; fall back to the saved `experienceLevel` alias for older subscriptions. Store the new component scores and bullet-advice fields alongside the existing recommendation history document.
 
-- [ ] **Step 8: Update daily digest selection.** Select up to ten unseen jobs with final score `>=68`; if fewer qualify, send fewer and include the actual count in the email subject/body. Never include `FAIL` jobs.
+- [x] **Step 8: Update daily digest selection.** Select up to ten unseen jobs with final score `>=68`; if fewer qualify, send fewer and include the actual count in the email subject/body. Never include `FAIL` jobs.
 
-- [ ] **Step 9: Run focused and full tests.**
+- [x] **Step 9: Run focused and full tests.**
 
 Run: `mvn --file backend/pom.xml -Dtest=RecommendationPipelineTest,JobMatchingServiceTest,EmailServiceTest test`
 
 Expected: PASS, including existing history and HTML escaping tests.
 
-- [ ] **Step 10: Commit the pipeline.**
+- [x] **Step 10: Commit the pipeline.**
 
 ```bash
 git add backend/src/main/java/edu/cmu/msis/project4/service/RecommendationService.java backend/src/main/java/edu/cmu/msis/project4/client/SerpApiClient.java backend/src/main/java/edu/cmu/msis/project4/model/RecommendationResponse.java backend/src/main/java/edu/cmu/msis/project4/repository/MongoRepository.java backend/src/main/java/edu/cmu/msis/project4/service/DailyDigestService.java backend/src/test/java/edu/cmu/msis/project4/service/RecommendationPipelineTest.java

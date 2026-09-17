@@ -23,7 +23,7 @@ import com.mongodb.client.model.UpdateOptions;
 /**
  * Author: Raina Qiu (yuluq)
  */
-public class MongoRepository {
+public class MongoRepository implements RecommendationRepository {
     private final MongoClient client;
     private final MongoDatabase db;
     private final MongoCollection<Document> historyCollection;
@@ -58,9 +58,28 @@ public class MongoRepository {
                 .append("description", job.description)
                 .append("matchScore", job.matchScore)
                 .append("matchReasons", job.matchReasons)
+                .append("eligibilityStatus", job.eligibilityStatus)
+                .append("eligibilityReasons", job.eligibilityReasons)
+                .append("detectedCareerTrack", job.detectedCareerTrack)
+                .append("detectedSpecialization", job.detectedSpecialization)
+                .append("roleFitScore", job.roleFitScore)
+                .append("requiredSkillScore", job.requiredSkillScore)
+                .append("preferredSkillScore", job.preferredSkillScore)
+                .append("evidenceFitScore", job.evidenceFitScore)
+                .append("deterministicScore", job.deterministicScore)
+                .append("scoringVersion", job.scoringVersion)
+                .append("requiredSkillMatches", job.requiredSkillMatches)
+                .append("missingRequiredSkills", job.missingRequiredSkills)
+                .append("preferredSkillMatches", job.preferredSkillMatches)
+                .append("evidenceHighlights", job.evidenceHighlights)
                 .append("llmMatchScore", job.llmMatchScore)
                 .append("llmRationale", job.llmRationale)
+                .append("transferableSkills", job.transferableSkills)
+                .append("missingSkills", job.missingSkills)
+                .append("currentBullet", job.currentBullet)
+                .append("suggestedBullet", job.suggestedBullet)
                 .append("resumeAdvice", job.resumeAdvice)
+                .append("llmConfidence", job.llmConfidence)
                 .append("llmEvaluated", job.llmEvaluated)
                 .append("recommendedAt", Instant.now().toString())
                 .append("source", "google_jobs");
@@ -91,6 +110,8 @@ public class MongoRepository {
                         set("email", preference.email),
                         set("role", preference.role),
                         set("location", preference.location),
+                        set("careerTrack", preference.careerTrack),
+                        set("specialization", preference.specialization),
                         set("experienceLevel", preference.experienceLevel),
                         set("searchScope", preference.searchScope),
                         set("resumeText", preference.resumeText),
@@ -107,6 +128,8 @@ public class MongoRepository {
             preference.email = document.getString("email");
             preference.role = document.getString("role");
             preference.location = document.getString("location");
+            preference.careerTrack = document.getString("careerTrack");
+            preference.specialization = document.getString("specialization");
             preference.experienceLevel = document.getString("experienceLevel");
             preference.searchScope = document.getString("searchScope");
             preference.resumeText = document.getString("resumeText");

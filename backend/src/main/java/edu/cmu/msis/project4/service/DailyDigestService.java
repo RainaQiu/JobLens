@@ -6,6 +6,8 @@ import edu.cmu.msis.project4.model.RecommendationResponse;
 import edu.cmu.msis.project4.model.UserPreference;
 import edu.cmu.msis.project4.repository.MongoRepository;
 
+import java.util.List;
+
 /** Orchestrates profile loading, matching, deduplication, and email delivery. */
 public class DailyDigestService {
     private final MongoRepository repository = new MongoRepository();
@@ -24,8 +26,18 @@ public class DailyDigestService {
                     result.skipped++;
                     continue;
                 }
-                emailService.sendDigest(preference.userId, preference.email, recommendations.jobs);
-                recommendations.jobs.forEach(job ->
+                List<edu.cmu.msis.project4.model.JobRecommendation> digestJobs = recommendations.jobs.stream()
+                        .filter(job -> job != null
+                                && !"FAIL".equals(job.eligibilityStatus)
+                                && job.matchScore >= 68)
+                        .limit(10)
+                        .toList();
+                if (digestJobs.isEmpty()) {
+                    result.skipped++;
+                    continue;
+                }
+                emailService.sendDigest(preference.userId, preference.email, digestJobs);
+                digestJobs.forEach(job ->
                         repository.saveRecommendationHistory(preference.userId, job));
                 result.sent++;
             } catch (Exception e) {
@@ -40,6 +52,8 @@ public class DailyDigestService {
         request.userId = preference.userId;
         request.role = preference.role;
         request.location = preference.location;
+        request.careerTrack = preference.careerTrack;
+        request.specialization = preference.specialization;
         request.experienceLevel = preference.experienceLevel;
         request.searchScope = preference.searchScope;
         request.resumeText = preference.resumeText;
