@@ -15,7 +15,16 @@ jobs:
           JOBLENS_API_URL: ${{ secrets.JOBLENS_API_URL }}
           DIGEST_TRIGGER_TOKEN: ${{ secrets.DIGEST_TRIGGER_TOKEN }}
         run: |
+          if [[ -z "${JOBLENS_API_URL}" || ! "${JOBLENS_API_URL}" =~ ^https?:// ]]; then
+            echo "::error::JOBLENS_API_URL must be a non-empty http(s) URL."
+            exit 1
+          fi
+          if [[ -z "${DIGEST_TRIGGER_TOKEN}" ]]; then
+            echo "::error::DIGEST_TRIGGER_TOKEN is not configured."
+            exit 1
+          fi
+          JOBLENS_API_ORIGIN="${JOBLENS_API_URL%/}"
           curl --fail-with-body --retry 3 --retry-delay 20 \
             --request POST \
             --header "Authorization: Bearer ${DIGEST_TRIGGER_TOKEN}" \
-            "${JOBLENS_API_URL}/api/digests/run"
+            "${JOBLENS_API_ORIGIN}/api/digests/run"

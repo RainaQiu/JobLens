@@ -8,11 +8,23 @@ services:
     envVars:
       - key: SERPAPI_API_KEY
         sync: false
+      - key: SERPAPI_ENGINE
+        value: google_jobs
+      - key: SERPAPI_BASE_URL
+        value: https://serpapi.com/search.json
       - key: MONGODB_URI
         sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: DIGEST_FROM_EMAIL
+        sync: false
+      - key: RESEND_API_URL
+        value: https://api.resend.com/emails
+      - key: QWEN_API_KEY
+        sync: false
+      - key: QWEN_BASE_URL
+        sync: false
+      - key: QWEN_MODEL
         sync: false
       - key: DIGEST_TRIGGER_TOKEN
         generateValue: true

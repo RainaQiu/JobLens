@@ -7,8 +7,8 @@ JobLens is an explainable job-matching system with a browser experience, a nativ
 ## What is implemented
 
 - Resume text extraction from PDF, DOC/DOCX, and text files with Apache Tika.
-- Explainable NLP ranking using role-title alignment, resume/JD overlap, shared skills, and experience-level alignment.
-- Optional OpenAI-compatible LLM reranking for transferable-skill judgment and two-sentence resume advice; Qwen and Gemini can use the same adapter.
+- Hybrid matching: hard eligibility for career track, role family/specialization, and location, followed by explainable role/required/preferred/evidence scoring.
+- Optional OpenAI-compatible DeepSeek semantic review for transferable-skill judgment and two-sentence resume advice; the deterministic score remains available as a provider-free fallback.
 - Freshness filtering for jobs posted in the last seven days.
 - Per-user deduplication and recommendation history in MongoDB Atlas.
 - Nationwide U.S. fan-out across prioritized state-level SerpAPI searches.
@@ -27,40 +27,43 @@ flowchart LR
     T --> P[Search profile]
     P --> S[SerpAPI Google Jobs]
     S --> F[7-day freshness + deduplication]
-    F --> R[Explainable NLP ranker]
-    R --> W[Web or Android results]
+    F --> E[Hard eligibility: track + role + location]
+    E --> R[Explainable role/skill/evidence scoring]
+    R --> L[DeepSeek review: transfer + resume tip]
+    L --> W[Web or Android results]
     R --> M[(MongoDB history)]
     G[GitHub Actions daily schedule] --> D[Protected digest endpoint]
     D --> R
     D --> E[Resend email: Top 10]
 ```
 
-## Match score
+## Eligibility and match score
 
-The current portfolio MVP uses a deterministic, auditable ranker rather than presenting a black-box score:
+The search form exposes exactly three user-facing career tracks: `Internship`, `New Graduate / Early Career`, and `General Full-time`. Career track, role family/specialization, and location are hard eligibility decisions. An explicit mismatch is removed before ranking; missing job metadata is retained as `UNKNOWN` and shown as unverified. Skill gaps lower a score but never silently remove an otherwise eligible role.
 
-- up to 50 points: target-role tokens aligned with the job title;
-- up to 25 points: resume language overlapping with the job description;
-- up to 20 points: shared technical skills;
-- 5 points: experience-level alignment.
+Each eligible role receives an auditable deterministic score:
 
-Each result includes `matchScore` and `matchReasons`. The ranker is isolated behind `JobMatchingService`, and the optional `LlmReranker` can be evaluated against the same test set.
+- `roleFitScore` × 0.40
+- `requiredSkillScore` × 0.35
+- `preferredSkillScore` × 0.15
+- `evidenceFitScore` × 0.10
 
-When `QWEN_API_KEY`, `QWEN_BASE_URL`, and `QWEN_MODEL` are all set, the backend sends only the top 20 deterministic candidates to the configured OpenAI-compatible model. The model can recognize transferable experience that does not share exact resume keywords, add a concise rationale, and produce a truthful two-sentence resume tip. The deterministic score remains the fallback when the provider is disabled, unavailable, or returns invalid JSON.
+All components and the deterministic score are integers from 0 to 100. If semantic review is enabled, the final score blends 55% deterministic score with 45% DeepSeek semantic score. Every result also includes evidence lists, `eligibilityStatus`, and `scoringVersion`.
+
+When `QWEN_API_KEY`, `QWEN_BASE_URL`, and `QWEN_MODEL` are all set, the backend sends only the top 20 eligible candidates to the configured OpenAI-compatible model. The model can recognize transferable experience that does not share exact resume keywords, add a concise rationale, and produce a truthful two-sentence resume tip tied to an existing bullet. The deterministic score remains the fallback when the provider is disabled, unavailable, or returns invalid JSON.
 
 Example provider settings:
 
 ```text
-# Qwen Model Studio (US Virginia)
-QWEN_BASE_URL=https://dashscope-us.aliyuncs.com/compatible-mode/v1
-QWEN_MODEL=qwen-plus
+# Recommended for this project: DeepSeek's inexpensive chat model
+QWEN_BASE_URL=https://api.deepseek.com
+QWEN_MODEL=deepseek-flash
 
-# Or Gemini OpenAI compatibility
-QWEN_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-QWEN_MODEL=gemini-3.1-flash-lite
+# The same adapter can point at another OpenAI-compatible provider if needed.
+# Keep the variable names unchanged so Render and local deployments share one contract.
 ```
 
-Gemini currently offers a free tier with model- and quota-specific limits; Google documents the free/paid pricing and data-handling differences on its pricing page. Qwen Model Studio also documents OpenAI-compatible endpoints and free quotas for some new users/regions. For a portfolio demo, start with the provider that gives you the most reliable quota in your deployment region, then keep the provider fields secret and monitor spend.
+DeepSeek is the recommended provider for this portfolio because the task is short structured text review rather than generation of long documents. Keep the provider fields secret and monitor quota; if they are blank or the provider fails, JobLens still returns deterministic scores and reasons.
 
 ## API
 
@@ -81,7 +84,8 @@ Example recommendation request:
   "userId": "demo-user",
   "role": "Data Engineer",
   "location": "United States",
-  "experienceLevel": "Entry level",
+  "careerTrack": "NEW_GRADUATE",
+  "specialization": "Data Platform",
   "searchScope": "NATIONWIDE_US",
   "resumeText": "Python SQL Spark Airflow AWS ETL",
   "limit": 10
@@ -95,6 +99,7 @@ Example recommendation request:
 - SerpAPI Google Jobs
 - Apache Tika 3.3.2
 - Resend email API
+- DeepSeek (OpenAI-compatible chat completions; optional)
 - Native Android (Java, Material components, OkHttp)
 - Docker, Render Blueprint, GitHub Actions
 
@@ -121,6 +126,8 @@ Set the Android API URL without editing source code:
 
 ## Deploy the public web/API demo
 
+For local development, keep secrets in `JobLens/.env` (Windows path: `D:\MISM\Collection\JobLens\.env`) and load them into your IDE or process environment; `.env` is ignored by Git and is never committed. The Java backend reads OS environment variables, so do not paste secrets into source files.
+
 Configure each service in its own dashboard, then copy only the values into Render's environment-variable form:
 
 | Service | Where to configure it | Value used by JobLens |
@@ -128,10 +135,11 @@ Configure each service in its own dashboard, then copy only the values into Rend
 | MongoDB Atlas | Atlas project → Database Access (create a least-privilege user), then Connect → Drivers | `MONGODB_URI` |
 | SerpAPI | SerpAPI dashboard → API Key | `SERPAPI_API_KEY` |
 | Resend | Resend dashboard → API Keys; verify a sending domain under Domains | `RESEND_API_KEY`, `DIGEST_FROM_EMAIL` |
+| DeepSeek | DeepSeek Platform → API Keys | `QWEN_API_KEY`, `QWEN_BASE_URL=https://api.deepseek.com`, `QWEN_MODEL=deepseek-flash` |
 | Render | New → Blueprint → select this repo → Environment | all server variables in `.env.example` |
 | GitHub Actions | Repository Settings → Secrets and variables → Actions | `JOBLENS_API_URL`, `DIGEST_TRIGGER_TOKEN`, and APK signing secrets |
 
-In Render, create a Blueprint from this repository. `render.yaml` builds the root `Dockerfile` and checks `/api/health`. Copy the generated `DIGEST_TRIGGER_TOKEN` into the same-named GitHub Actions secret, then set `JOBLENS_API_URL` to the Render service origin, for example `https://joblens-api.onrender.com`. The Android release build should use the same origin through `JOBLENS_API_BASE_URL`.
+In Render, create a Blueprint from this repository. `render.yaml` builds the root `Dockerfile` and checks `/api/health`. Set the optional DeepSeek variables to enable semantic review; leave all three blank for deterministic-only matching. Copy the generated `DIGEST_TRIGGER_TOKEN` into the same-named GitHub Actions secret, then set `JOBLENS_API_URL` to the actual service origin shown in the Render dashboard (do not add `/api`). The Android release build should use that same origin through `JOBLENS_API_BASE_URL`.
 
 Render free services can sleep after inactivity, so the first request may be slower. The scheduled GitHub Actions request wakes the service before invoking the daily workflow.
 

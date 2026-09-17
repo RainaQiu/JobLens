@@ -344,17 +344,17 @@ git commit -m "feat: orchestrate eligibility before hybrid ranking"
 - Browser request body sends `careerTrack` values `INTERNSHIP`, `NEW_GRADUATE`, or `GENERAL_FULL_TIME` and optional `specialization`.
 - Response cards render `matchScore`, eligibility status, component reasons, `transferableSkills`, `missingSkills`, `currentBullet`, `suggestedBullet`, and `resumeAdvice` when present.
 
-- [ ] **Step 1: Add browser controls.** Replace the existing `Experience` select with the three career-track labels and values; add an optional specialization input whose placeholder explains `Android, Platform, Backend, or leave blank for generic role`.
+- [x] **Step 1: Add browser controls.** Replace the existing `Experience` select with the three career-track labels and values; add an optional specialization input whose placeholder explains `Android, Platform, Backend, or leave blank for generic role`.
 
-- [ ] **Step 2: Update the request builder.** Send `careerTrack` and `specialization`; retain `experienceLevel` only if needed for old Android builds, not in new browser requests.
+- [x] **Step 2: Update the request builder.** Send `careerTrack` and `specialization`; retain `experienceLevel` only if needed for old Android builds, not in new browser requests.
 
-- [ ] **Step 3: Render explainable results.** Show the final percentage prominently, display `Strong match`, `Recommend`, or `Stretch opportunity`, show eligibility warnings for `UNKNOWN`, and render advice as `Current bullet → Suggested bullet` only when both fields are nonblank.
+- [x] **Step 3: Render explainable results.** Show the final percentage prominently, display `Strong match`, `Recommend`, or `Stretch opportunity`, show eligibility warnings for `UNKNOWN`, and render advice as `Current bullet → Suggested bullet` only when both fields are nonblank.
 
-- [ ] **Step 4: Preserve safe HTML behavior.** Continue escaping all job, reason, skill, and advice strings and continue validating apply links through `safeUrl`.
+- [x] **Step 4: Preserve safe HTML behavior.** Continue escaping all job, reason, skill, and advice strings and continue validating apply links through `safeUrl`.
 
-- [ ] **Step 5: Update Android DTOs and controls.** Add nullable fields so an older APK can parse the expanded response while the new release can send `careerTrack`; update `FirstFragment`, `fragment_first.xml`, `arrays.xml`, and `strings.xml` to show and persist the three career-track choices; do not change the API base URL mechanism.
+- [x] **Step 5: Update Android DTOs and controls.** Add nullable fields so an older APK can parse the expanded response while the new release can send `careerTrack`; update `FirstFragment`, `fragment_first.xml`, `arrays.xml`, and `strings.xml` to show and persist the three career-track choices; do not change the API base URL mechanism.
 
-- [ ] **Step 6: Render native recommendation details.** Update `JobRecommendationAdapter` and `item_job.xml` to display the final percentage, eligibility warning, top reasons, and a concise resume tip while keeping apply links safe.
+- [x] **Step 6: Render native recommendation details.** Update `JobRecommendationAdapter` and `item_job.xml` to display the final percentage, eligibility warning, top reasons, and a concise resume tip while keeping apply links safe.
 
 - [ ] **Step 7: Run backend tests and a static browser check.**
 
@@ -362,7 +362,7 @@ Run: `mvn --file backend/pom.xml test`
 
 Expected: PASS. Open the local WAR or Render URL and verify a generic Software Engineer search, an Android specialization search, and the three track labels render without console errors.
 
-- [ ] **Step 8: Commit presentation changes.**
+- [x] **Step 8: Commit presentation changes.**
 
 ```bash
 git add backend/src/main/webapp/index.html android-app/app/src/main/java/ds/edu/cmu/model/RecommendationRequest.java android-app/app/src/main/java/ds/edu/cmu/model/RecommendationResponse.java android-app/app/src/main/java/ds/edu/cmu/FirstFragment.java android-app/app/src/main/java/ds/edu/cmu/JobRecommendationAdapter.java android-app/app/src/main/res/layout/fragment_first.xml android-app/app/src/main/res/layout/item_job.xml android-app/app/src/main/res/values/arrays.xml android-app/app/src/main/res/values/strings.xml
@@ -382,7 +382,7 @@ git commit -m "feat: expose career tracks and resume advice in clients"
 - Render secret variables: `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`, `SERPAPI_API_KEY`, `MONGODB_URI`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, and `DIGEST_TRIGGER_TOKEN`.
 - GitHub Actions secrets: `JOBLENS_API_URL` and `DIGEST_TRIGGER_TOKEN`.
 
-- [ ] **Step 1: Update `.env.example`.** Document the safe DeepSeek template:
+- [x] **Step 1: Update `.env.example`.** Document the safe DeepSeek template:
 
 ```text
 QWEN_API_KEY=
@@ -392,11 +392,11 @@ QWEN_MODEL=deepseek-flash
 
 Keep the key blank and state that the same values must be entered in Render, not committed.
 
-- [ ] **Step 2: Update `render.yaml`.** Add the three QWEN variables as `sync: false` entries so a Blueprint deployment prompts for them; leave `DIGEST_TRIGGER_TOKEN` generated by Render and keep `/api/health` as the health check.
+- [x] **Step 2: Update `render.yaml`.** Add the three QWEN variables as `sync: false` entries so a Blueprint deployment prompts for them; leave `DIGEST_TRIGGER_TOKEN` generated by Render and keep `/api/health` as the health check.
 
-- [ ] **Step 3: Add workflow preflight.** Before curl, fail with a GitHub error annotation if `JOBLENS_API_URL` is empty or does not start with `http://` or `https://`, and fail separately if `DIGEST_TRIGGER_TOKEN` is empty. Normalize one trailing slash without printing either secret.
+- [x] **Step 3: Add workflow preflight.** Before curl, fail with a GitHub error annotation if `JOBLENS_API_URL` is empty or does not start with `http://` or `https://`, and fail separately if `DIGEST_TRIGGER_TOKEN` is empty. Normalize one trailing slash without printing either secret.
 
-- [ ] **Step 4: Update README deployment instructions.** Explain the local `.env` path, Render variables, DeepSeek fallback, GitHub secrets, the public Render origin used by the portfolio, and the three career tracks. Do not add a fake public URL.
+- [x] **Step 4: Update README deployment instructions.** Explain the local `.env` path, Render variables, DeepSeek fallback, GitHub secrets, the public Render origin used by the portfolio, and the three career tracks. Do not add a fake public URL.
 
 - [ ] **Step 5: Run configuration checks.**
 
