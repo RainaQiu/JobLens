@@ -24,4 +24,8 @@ public class JobRecommendation {
     public String llmRationale;
     public String resumeAdvice;
     public boolean llmEvaluated;
+    public String eligibilityStatus = "UNKNOWN";
+    public List<String> eligibilityReasons = new ArrayList<>();
+    public String detectedCareerTrack;
+    public String detectedSpecialization;
 }
