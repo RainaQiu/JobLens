@@ -1,0 +1,43 @@
+[
+  {
+    "family": "Data Scientist",
+    "aliases": ["data scientist", "data science", "applied scientist"],
+    "specializations": {
+      "Machine Learning": ["machine learning scientist", "ml scientist"],
+      "NLP": ["nlp scientist", "natural language processing scientist"]
+    },
+    "requiredSkills": ["python", "sql", "machine learning"],
+    "preferredSkills": ["pytorch", "tensorflow", "nlp"]
+  },
+  {
+    "family": "Data Engineer",
+    "aliases": ["data engineer", "analytics engineer", "data platform engineer"],
+    "specializations": {
+      "Platform": ["data platform engineer", "data infrastructure engineer"]
+    },
+    "requiredSkills": ["python", "sql", "etl"],
+    "preferredSkills": ["spark", "airflow", "aws", "bigquery"]
+  },
+  {
+    "family": "Software Engineer",
+    "aliases": ["software engineer", "software developer", "swe"],
+    "specializations": {
+      "Backend": ["backend engineer", "server-side engineer", "api engineer"],
+      "Platform": ["platform engineer", "infrastructure engineer", "developer infrastructure"],
+      "Android": ["android engineer", "android developer", "mobile android engineer"],
+      "iOS": ["ios engineer", "ios developer", "mobile ios engineer"],
+      "Full Stack": ["full stack engineer", "full-stack developer", "web application engineer"]
+    },
+    "requiredSkills": ["programming", "git"],
+    "preferredSkills": ["rest api", "docker", "microservices"]
+  },
+  {
+    "family": "AI Agent Engineer",
+    "aliases": ["ai agent engineer", "agentic ai engineer", "llm application engineer"],
+    "specializations": {
+      "RAG": ["rag engineer", "retrieval augmented generation engineer"]
+    },
+    "requiredSkills": ["python", "llm"],
+    "preferredSkills": ["rag", "langchain", "machine learning"]
+  }
+]
