@@ -1,0 +1,15 @@
+{
+  "matches": [
+    {
+      "jobKey": "job-1",
+      "semanticScore": 84,
+      "rationale": "The resume shows transferable pipeline ownership.",
+      "transferableSkills": ["ETL", "distributed systems"],
+      "missingSkills": ["dbt"],
+      "currentBullet": "Built a data pipeline",
+      "suggestedBullet": "Built a Python and Spark data pipeline serving daily analytics workloads",
+      "resumeAdvice": "If accurate, quantify the pipeline scale and name the Spark optimization.",
+      "confidence": 0.88
+    }
+  ]
+}
