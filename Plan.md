@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-16-joblens-career-track-matching-design.md`
 
+**Implementation status (2026-09-17):** Tasks 1–8 are implemented and pushed to `main`. Task 9's local backend, Android, and browser checks pass; Docker/Render/GitHub workflow smoke tests remain account- and daemon-dependent.
+
 ## Global Constraints
 
 - User-facing career tracks are exactly `Internship`, `New Graduate / Early Career`, and `General Full-time`; server normalization also accepts `ANY`.
