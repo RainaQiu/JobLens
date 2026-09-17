@@ -55,7 +55,11 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
         private final TextView textMeta;
         private final TextView textApplySource;
         private final TextView textMatchScore;
+        private final TextView textEligibility;
+        private final TextView textScoreBreakdown;
         private final TextView textMatchReasons;
+        private final TextView textTransferableSkills;
+        private final TextView textResumeAdvice;
         private final Button buttonApply;
 
         JobViewHolder(@NonNull View itemView) {
@@ -67,7 +71,11 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
             textMeta = itemView.findViewById(R.id.text_job_meta);
             textApplySource = itemView.findViewById(R.id.text_job_apply_source);
             textMatchScore = itemView.findViewById(R.id.text_job_match_score);
+            textEligibility = itemView.findViewById(R.id.text_job_eligibility);
+            textScoreBreakdown = itemView.findViewById(R.id.text_job_score_breakdown);
             textMatchReasons = itemView.findViewById(R.id.text_job_match_reasons);
+            textTransferableSkills = itemView.findViewById(R.id.text_job_transferable_skills);
+            textResumeAdvice = itemView.findViewById(R.id.text_job_resume_advice);
             buttonApply = itemView.findViewById(R.id.button_job_apply);
         }
 
@@ -94,11 +102,43 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
             textApplySource.setText(itemView.getContext().getString(R.string.job_source_template, applySource));
             textMatchScore.setText(itemView.getContext().getString(R.string.job_match_score_template,
                     job == null ? 0 : job.matchScore));
+            String eligibility = job == null || blank(job.eligibilityStatus)
+                    ? "UNKNOWN" : job.eligibilityStatus;
+            String track = job == null ? "" : job.detectedCareerTrack;
+            textEligibility.setText(itemView.getContext().getString(
+                    R.string.job_eligibility_template, eligibility, blank(track) ? "unverified" : track));
+            if (job == null) {
+                textScoreBreakdown.setVisibility(View.GONE);
+            } else {
+                textScoreBreakdown.setVisibility(View.VISIBLE);
+                textScoreBreakdown.setText(itemView.getContext().getString(
+                        R.string.job_score_breakdown_template,
+                        job.roleFitScore, job.requiredSkillScore,
+                        job.preferredSkillScore, job.evidenceFitScore));
+            }
             if (job == null || job.matchReasons == null || job.matchReasons.isEmpty()) {
                 textMatchReasons.setVisibility(View.GONE);
             } else {
                 textMatchReasons.setVisibility(View.VISIBLE);
                 textMatchReasons.setText(String.join(" · ", job.matchReasons));
+            }
+
+            String transferable = joinSkills(job == null ? null : job.transferableSkills);
+            if (blank(transferable)) {
+                textTransferableSkills.setVisibility(View.GONE);
+            } else {
+                textTransferableSkills.setVisibility(View.VISIBLE);
+                textTransferableSkills.setText(itemView.getContext().getString(
+                        R.string.job_transferable_template, transferable));
+            }
+
+            String advice = job == null ? "" : joinAdvice(job.resumeAdvice, job.suggestedBullet);
+            if (blank(advice)) {
+                textResumeAdvice.setVisibility(View.GONE);
+            } else {
+                textResumeAdvice.setVisibility(View.VISIBLE);
+                textResumeAdvice.setText(itemView.getContext().getString(
+                        R.string.job_resume_advice_template, advice));
             }
 
             String destination = primaryDestination(job);
@@ -133,6 +173,17 @@ public class JobRecommendationAdapter extends RecyclerView.Adapter<JobRecommenda
                 return itemView.getContext().getString(R.string.job_meta_single, right);
             }
             return "";
+        }
+
+        private String joinSkills(List<String> skills) {
+            return skills == null ? "" : String.join(", ", skills);
+        }
+
+        private String joinAdvice(String advice, String suggestedBullet) {
+            if (blank(advice)) {
+                return blank(suggestedBullet) ? "" : "Suggested bullet: " + suggestedBullet;
+            }
+            return blank(suggestedBullet) ? advice : advice + " Suggested bullet: " + suggestedBullet;
         }
 
         private String primaryDestination(JobRecommendation job) {

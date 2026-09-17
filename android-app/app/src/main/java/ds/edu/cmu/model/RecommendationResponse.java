@@ -22,5 +22,11 @@ public class RecommendationResponse {
         public String searchSummary;
         public int searchedLocationsCount;
         public int jobsWithApplyLinks;
+        public int rawCandidateCount;
+        public int eligibleCount;
+        public int filteredCount;
+        public int llmEvaluatedCount;
+        public String careerTrack;
+        public String scoringVersion;
     }
 }

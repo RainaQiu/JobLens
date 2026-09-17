@@ -9,10 +9,11 @@
     <string name="history_subtitle">Review the jobs already sent to this user and jump back to an application link quickly.</string>
     <string name="hint_user_id">Andrew ID or user ID</string>
     <string name="hint_role">Target role (example: Software Engineer)</string>
+    <string name="hint_specialization">Specialization (optional, e.g. Platform or Android)</string>
     <string name="hint_location">Location (country, state, or city)</string>
     <string name="location_helper_text">Examples: United States, Pennsylvania, Pittsburgh, PA. In Nationwide U.S. mode, location can be blank or set to United States.</string>
     <string name="label_search_scope">Search scope</string>
-    <string name="label_experience_level">Experience level</string>
+    <string name="label_career_track">Career track</string>
     <string name="button_search">Search Jobs</string>
     <string name="button_open_history">View History</string>
     <string name="button_refresh_history">Refresh History</string>
@@ -23,7 +24,7 @@
     <string name="loading_recommendations">Loading job recommendations from the backend...</string>
     <string name="loading_history">Loading recommendation history...</string>
     <string name="validation_message">Please enter your user ID, role, and a location. Nationwide U.S. mode can use United States or leave location blank.</string>
-    <string name="no_recommendations_found">No new jobs matched your search. Try changing the role, location, or experience level.</string>
+    <string name="no_recommendations_found">No new jobs matched your search. Try changing the role, location, or career track.</string>
     <string name="recommendations_loaded_message">%1$d recommendations loaded. API latency: %2$d ms. Search locations used: %3$d.</string>
     <string name="user_id_needed_for_history">Enter a user ID first so the app knows whose history to load.</string>
     <string name="history_requires_user">Search for jobs first so the app can remember a user ID for history.</string>
@@ -32,6 +33,9 @@
     <string name="current_user_placeholder">Current user: -</string>
     <string name="current_user_template">Current user: %1$s</string>
     <string name="experience_any">Any</string>
+    <string name="career_track_internship">Internship</string>
+    <string name="career_track_new_grad">New Graduate / Early Career</string>
+    <string name="career_track_full_time">General Full-time</string>
     <string name="scope_auto">Auto match</string>
     <string name="scope_specific">Specific place</string>
     <string name="scope_nationwide_us">Nationwide U.S.</string>
@@ -47,6 +51,10 @@
     <string name="job_meta_template">%1$s - %2$s</string>
     <string name="job_meta_single">%1$s</string>
     <string name="job_match_score_template">%1$d%% profile match</string>
+    <string name="job_eligibility_template">%1$s · %2$s</string>
+    <string name="job_score_breakdown_template">Role %1$d · Required %2$d · Preferred %3$d · Evidence %4$d</string>
+    <string name="job_transferable_template">Transferable skills: %1$s</string>
+    <string name="job_resume_advice_template">Resume edit: %1$s</string>
     <string name="history_recommended_template">Recommended on %1$s</string>
     <string name="button_previous_page">Previous</string>
     <string name="button_next_page">Next</string>

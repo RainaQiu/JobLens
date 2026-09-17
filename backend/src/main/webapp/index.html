@@ -33,6 +33,17 @@
     .job h3 { margin:0; font-size:1.18rem; }
     .meta { color:var(--muted); margin:5px 0 12px; }
     .reason { display:inline-block; margin:4px 5px 0 0; padding:5px 9px; border-radius:99px; background:var(--mint); color:#075f52; font-size:.78rem; }
+    .eligibility { display:inline-block; margin:4px 5px 0 0; padding:5px 9px; border-radius:99px; font-size:.78rem; font-weight:800; text-transform:capitalize; }
+    .eligibility.pass { background:#dff5ec; color:#075f52; }
+    .eligibility.unknown { background:#fff0c7; color:#765a00; }
+    .eligibility.fail { background:#ffe1dc; color:#8d2b20; }
+    .score-breakdown { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .score-breakdown span { padding:7px 8px; border-radius:10px; background:#f2f6f3; color:var(--muted); font-size:.72rem; }
+    .score-breakdown strong { display:block; color:var(--ink); font-size:.9rem; }
+    .advice { margin:12px 0 0; padding:12px; border-left:3px solid var(--teal); background:#f1faf6; color:var(--ink); }
+    .advice p { margin:4px 0; }
+    .skill-list { margin:8px 0 0; color:var(--muted); font-size:.82rem; }
+    .skill-list strong { color:var(--ink); }
     .score { width:72px; height:72px; border-radius:50%; display:grid; place-items:center; background:var(--mint); color:#075f52; font-size:1.05rem; font-weight:900; }
     .apply { margin-top:14px; }
     .empty { padding:60px 24px; text-align:center; border:1px dashed #aebeb7; border-radius:20px; color:var(--muted); }
@@ -57,8 +68,14 @@
       <input id="location" required value="United States" placeholder="e.g. New York, NY">
       <label for="scope">Search scope</label>
       <select id="scope"><option value="AUTO">Auto match</option><option value="SPECIFIC">Specific place</option><option value="NATIONWIDE_US" selected>Nationwide U.S.</option></select>
-      <label for="experience">Experience</label>
-      <select id="experience"><option>Any</option><option selected>Entry level</option><option>Internship</option><option>Senior</option></select>
+      <label for="specialization">Specialization (optional)</label>
+      <input id="specialization" placeholder="e.g. Platform, Android, NLP">
+      <label for="career-track">Career track</label>
+      <select id="career-track">
+        <option value="INTERNSHIP">Internship</option>
+        <option value="NEW_GRADUATE" selected>New Graduate / Early Career</option>
+        <option value="GENERAL_FULL_TIME">General Full-time</option>
+      </select>
       <label for="email">Email for daily Top 10</label>
       <input id="email" type="email" placeholder="you@example.com">
       <div class="actions"><button id="search" type="submit">Find matches</button><button id="subscribe" class="secondary" type="button">Subscribe</button></div>
@@ -75,11 +92,12 @@
     const $=id=>document.getElementById(id);
     async function json(response){const body=await response.json();if(!response.ok)throw new Error(body.error||`Request failed (${response.status})`);return body;}
     async function ensureResume(){const file=$('resume').files[0];if(!file)return state.resumeText;if(state.resumeFile===`${file.name}:${file.size}`)return state.resumeText;setStatus('Reading your resume…');const form=new FormData();form.append('resume',file);const data=await fetch('api/resumes/extract',{method:'POST',body:form}).then(json);state.resumeText=data.text;state.resumeFile=`${file.name}:${file.size}`;return state.resumeText;}
-    function profile(){return {userId:state.userId,email:$('email').value.trim(),role:$('role').value.trim(),location:$('location').value.trim(),experienceLevel:$('experience').value,searchScope:$('scope').value,resumeText:state.resumeText,active:true};}
+    function profile(){return {userId:state.userId,email:$('email').value.trim(),role:$('role').value.trim(),location:$('location').value.trim(),specialization:$('specialization').value.trim(),careerTrack:$('career-track').value,searchScope:$('scope').value,resumeText:state.resumeText,active:true};}
     function setStatus(message){$('status').textContent=message;}
     function escapeHtml(value=''){const div=document.createElement('div');div.textContent=value;return div.innerHTML;}
     function safeUrl(value=''){try{const url=new URL(value,location.origin);return ['http:','https:'].includes(url.protocol)?url.href:'#';}catch{return '#';}}
-    function renderJobs(data){$('summary').textContent=data.meta?.searchSummary||`${data.recommendedCount} roles ranked`;$('jobs').innerHTML=data.jobs?.length?data.jobs.map(job=>`<article class="job"><div><h3>${escapeHtml(job.title)}</h3><p class="meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.postedAt)}</p><div>${(job.matchReasons||[]).map(r=>`<span class="reason">${escapeHtml(r)}</span>`).join('')}</div>${job.resumeAdvice?`<p class="meta"><strong>Resume tip:</strong> ${escapeHtml(job.resumeAdvice)}</p>`:''}<a class="button apply" href="${escapeHtml(safeUrl(job.applyLink))}" target="_blank" rel="noopener">Apply now</a></div><div class="score" aria-label="${job.matchScore} percent match">${job.matchScore}%</div></article>`).join(''):'<div class="empty">No unseen jobs matched this search. Try another role or location.</div>';}
+    function list(values){return Array.isArray(values)&&values.length?values.join(', '):'None identified';}
+    function renderJobs(data){$('summary').textContent=data.meta?.searchSummary||`${data.recommendedCount} roles ranked`;$('jobs').innerHTML=data.jobs?.length?data.jobs.map(job=>{const status=(job.eligibilityStatus||'UNKNOWN').toLowerCase();return `<article class="job"><div><h3>${escapeHtml(job.title)}</h3><p class="meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · ${escapeHtml(job.postedAt)}</p><div><span class="eligibility ${status}">${escapeHtml(job.eligibilityStatus||'UNKNOWN')} · ${escapeHtml(job.detectedCareerTrack||'unverified')}</span>${(job.matchReasons||[]).map(r=>`<span class="reason">${escapeHtml(r)}</span>`).join('')}</div><div class="score-breakdown"><span><strong>${job.roleFitScore||0}</strong>Role fit</span><span><strong>${job.requiredSkillScore||0}</strong>Required</span><span><strong>${job.preferredSkillScore||0}</strong>Preferred</span><span><strong>${job.evidenceFitScore||0}</strong>Evidence</span></div><p class="skill-list"><strong>Required:</strong> ${escapeHtml(list(job.requiredSkillMatches))} · <strong>Missing:</strong> ${escapeHtml(list(job.missingRequiredSkills))}</p>${job.transferableSkills?.length?`<p class="skill-list"><strong>Transferable:</strong> ${escapeHtml(list(job.transferableSkills))}</p>`:''}${job.resumeAdvice||job.suggestedBullet?`<div class="advice"><strong>Resume edit</strong>${job.resumeAdvice?`<p>${escapeHtml(job.resumeAdvice)}</p>`:''}${job.suggestedBullet?`<p><strong>Suggested bullet:</strong> ${escapeHtml(job.suggestedBullet)}</p>`:''}</div>`:''}<a class="button apply" href="${escapeHtml(safeUrl(job.applyLink))}" target="_blank" rel="noopener">Apply now</a></div><div class="score" aria-label="${job.matchScore} percent match">${job.matchScore}%</div></article>`;}).join(''):'<div class="empty">No unseen jobs matched this search. Try another role or location.</div>';}
     $('search-form').addEventListener('submit',async event=>{event.preventDefault();$('search').disabled=true;try{await ensureResume();setStatus('Searching and ranking fresh jobs…');const data=await fetch('api/recommendations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(profile())}).then(json);renderJobs(data);setStatus(`Ranked ${data.recommendedCount} new matches.`);}catch(error){setStatus(error.message);}finally{$('search').disabled=false;}});
     $('subscribe').addEventListener('click',async()=>{$('subscribe').disabled=true;try{await ensureResume();if(!$('email').value.trim())throw new Error('Enter an email address first.');await fetch('api/subscriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(profile())}).then(json);setStatus('Subscribed. Your daily digest will contain up to 10 new matches.');}catch(error){setStatus(error.message);}finally{$('subscribe').disabled=false;}});
     if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}

@@ -30,6 +30,8 @@ public class FirstFragment extends Fragment {
     private static final String KEY_USER_ID = "last_user_id";
     private static final String KEY_ROLE = "last_role";
     private static final String KEY_LOCATION = "last_location";
+    private static final String KEY_SPECIALIZATION = "last_specialization";
+    private static final String KEY_CAREER_TRACK = "last_career_track";
     private static final String KEY_EXPERIENCE = "last_experience";
     private static final String KEY_SEARCH_SCOPE = "last_search_scope";
     private static final String SCOPE_AUTO = "AUTO";
@@ -58,7 +60,7 @@ public class FirstFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         configureSearchScopeSpinner();
-        configureExperienceSpinner();
+        configureCareerTrackSpinner();
         binding.recyclerJobs.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerJobs.setAdapter(jobAdapter);
         binding.recyclerJobs.setHasFixedSize(false);
@@ -78,13 +80,13 @@ public class FirstFragment extends Fragment {
         binding = null;
     }
 
-    private void configureExperienceSpinner() {
+    private void configureCareerTrackSpinner() {
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
                 requireContext(),
-                R.array.experience_levels,
+                R.array.career_tracks,
                 android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.spinnerExperience.setAdapter(adapter);
+        binding.spinnerCareerTrack.setAdapter(adapter);
     }
 
     private void configureSearchScopeSpinner() {
@@ -101,7 +103,8 @@ public class FirstFragment extends Fragment {
         String role = textOf(binding.inputRole);
         String searchScope = selectedSearchScopeCode();
         String location = textOf(binding.inputLocation);
-        String experienceLevel = String.valueOf(binding.spinnerExperience.getSelectedItem());
+        String careerTrack = selectedCareerTrack();
+        String specialization = textOf(binding.inputSpecialization);
 
         if (SCOPE_NATIONWIDE_US.equals(searchScope) && location.isEmpty()) {
             location = "United States";
@@ -113,7 +116,7 @@ public class FirstFragment extends Fragment {
             return;
         }
 
-        saveLastInputs(userId, role, location, experienceLevel, searchScope);
+        saveLastInputs(userId, role, location, specialization, careerTrack, searchScope);
         setLoading(true, getString(R.string.loading_recommendations));
         binding.textSearchSummary.setText(getString(R.string.search_summary_placeholder));
         allRecommendations.clear();
@@ -124,7 +127,8 @@ public class FirstFragment extends Fragment {
         request.userId = userId;
         request.role = role;
         request.location = location;
-        request.experienceLevel = experienceLevel;
+        request.careerTrack = careerTrack;
+        request.specialization = specialization;
         request.searchScope = searchScope;
 
         apiClient.fetchRecommendations(request, new ApiClient.ApiCallback<RecommendationResponse>() {
@@ -183,7 +187,8 @@ public class FirstFragment extends Fragment {
                 userId,
                 textOf(binding.inputRole),
                 textOf(binding.inputLocation),
-                String.valueOf(binding.spinnerExperience.getSelectedItem()),
+                textOf(binding.inputSpecialization),
+                selectedCareerTrack(),
                 selectedSearchScopeCode());
 
         NavHostFragment.findNavController(FirstFragment.this)
@@ -256,25 +261,34 @@ public class FirstFragment extends Fragment {
         binding.inputUserId.setText(prefs.getString(KEY_USER_ID, ""));
         binding.inputRole.setText(prefs.getString(KEY_ROLE, ""));
         binding.inputLocation.setText(prefs.getString(KEY_LOCATION, ""));
+        binding.inputSpecialization.setText(prefs.getString(KEY_SPECIALIZATION, ""));
 
         selectSpinnerValue(binding.spinnerSearchScope.getAdapter(), prefs.getString(KEY_SEARCH_SCOPE, SCOPE_AUTO),
                 binding.spinnerSearchScope);
-        String savedExperience = prefs.getString(KEY_EXPERIENCE, getString(R.string.experience_any));
-        selectSpinnerValue(binding.spinnerExperience.getAdapter(), savedExperience, binding.spinnerExperience);
+        String savedCareerTrack = prefs.getString(KEY_CAREER_TRACK, "");
+        if (savedCareerTrack.trim().isEmpty()) {
+            savedCareerTrack = legacyCareerTrack(prefs.getString(KEY_EXPERIENCE, ""));
+        }
+        if (savedCareerTrack.trim().isEmpty()) {
+            savedCareerTrack = "NEW_GRADUATE";
+        }
+        selectSpinnerValue(binding.spinnerCareerTrack.getAdapter(), savedCareerTrack, binding.spinnerCareerTrack);
     }
 
     private void saveLastInputs(
             String userId,
             String role,
             String location,
-            String experienceLevel,
+            String specialization,
+            String careerTrack,
             String searchScope) {
         SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, 0);
         prefs.edit()
                 .putString(KEY_USER_ID, userId)
                 .putString(KEY_ROLE, role)
                 .putString(KEY_LOCATION, location)
-                .putString(KEY_EXPERIENCE, experienceLevel)
+                .putString(KEY_SPECIALIZATION, specialization)
+                .putString(KEY_CAREER_TRACK, careerTrack)
                 .putString(KEY_SEARCH_SCOPE, searchScope)
                 .apply();
     }
@@ -291,6 +305,35 @@ public class FirstFragment extends Fragment {
         }
     }
 
+    private String selectedCareerTrack() {
+        int position = binding.spinnerCareerTrack.getSelectedItemPosition();
+        switch (position) {
+            case 0:
+                return "INTERNSHIP";
+            case 2:
+                return "GENERAL_FULL_TIME";
+            default:
+                return "NEW_GRADUATE";
+        }
+    }
+
+    private String legacyCareerTrack(String experience) {
+        if (experience == null) {
+            return "";
+        }
+        String normalized = experience.trim().toLowerCase(java.util.Locale.US);
+        if (normalized.contains("intern")) {
+            return "INTERNSHIP";
+        }
+        if (normalized.contains("entry") || normalized.contains("new grad")) {
+            return "NEW_GRADUATE";
+        }
+        if (normalized.contains("mid") || normalized.contains("senior") || normalized.contains("full")) {
+            return "GENERAL_FULL_TIME";
+        }
+        return "";
+    }
+
     private void selectSpinnerValue(android.widget.SpinnerAdapter adapter, String targetValue, android.widget.Spinner spinner) {
         if (adapter == null || targetValue == null) {
             return;
@@ -303,6 +346,9 @@ public class FirstFragment extends Fragment {
 
             String candidate = item.toString();
             if (candidate.equals(targetValue)
+                    || ("INTERNSHIP".equals(targetValue) && candidate.equals(getString(R.string.career_track_internship)))
+                    || ("NEW_GRADUATE".equals(targetValue) && candidate.equals(getString(R.string.career_track_new_grad)))
+                    || ("GENERAL_FULL_TIME".equals(targetValue) && candidate.equals(getString(R.string.career_track_full_time)))
                     || (SCOPE_AUTO.equals(targetValue) && candidate.equals(getString(R.string.scope_auto)))
                     || (SCOPE_SPECIFIC.equals(targetValue) && candidate.equals(getString(R.string.scope_specific)))
                     || (SCOPE_NATIONWIDE_US.equals(targetValue) && candidate.equals(getString(R.string.scope_nationwide_us)))) {

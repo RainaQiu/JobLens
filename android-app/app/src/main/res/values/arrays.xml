@@ -5,11 +5,9 @@
         <item>@string/scope_specific</item>
         <item>@string/scope_nationwide_us</item>
     </string-array>
-    <string-array name="experience_levels">
-        <item>@string/experience_any</item>
-        <item>Internship</item>
-        <item>Entry Level</item>
-        <item>Mid Level</item>
-        <item>Senior Level</item>
+    <string-array name="career_tracks">
+        <item>@string/career_track_internship</item>
+        <item>@string/career_track_new_grad</item>
+        <item>@string/career_track_full_time</item>
     </string-array>
 </resources>
