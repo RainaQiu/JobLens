@@ -356,7 +356,7 @@ git commit -m "feat: orchestrate eligibility before hybrid ranking"
 
 - [x] **Step 6: Render native recommendation details.** Update `JobRecommendationAdapter` and `item_job.xml` to display the final percentage, eligibility warning, top reasons, and a concise resume tip while keeping apply links safe.
 
-- [ ] **Step 7: Run backend tests and a static browser check.**
+- [x] **Step 7: Run backend tests and a static browser check.**
 
 Run: `mvn --file backend/pom.xml test`
 
@@ -398,13 +398,13 @@ Keep the key blank and state that the same values must be entered in Render, not
 
 - [x] **Step 4: Update README deployment instructions.** Explain the local `.env` path, Render variables, DeepSeek fallback, GitHub secrets, the public Render origin used by the portfolio, and the three career tracks. Do not add a fake public URL.
 
-- [ ] **Step 5: Run configuration checks.**
+- [x] **Step 5: Run configuration checks.**
 
 Run: `git diff --check`
 
 Expected: no whitespace errors; `git status --short` shows only the four intended documentation/config files.
 
-- [ ] **Step 6: Commit cloud configuration.**
+- [x] **Step 6: Commit cloud configuration.**
 
 ```bash
 git add .env.example render.yaml .github/workflows/daily-digest.yml README.md
@@ -417,11 +417,11 @@ git commit -m "chore: configure DeepSeek and cloud digest deployment"
 - Verify: all files changed by Tasks 1–8
 - Verify: `Dockerfile`, `render.yaml`, `.github/workflows/daily-digest.yml`
 
-- [ ] **Step 1: Run the full backend test suite.**
+- [x] **Step 1: Run the full backend test suite.**
 
 Run: `mvn --file backend/pom.xml clean test`
 
-Expected: PASS with no test requiring external credentials.
+Expected: PASS with no test requiring external credentials. Verified 2026-09-17: 24 tests passed.
 
 - [ ] **Step 2: Build the production image.**
 
@@ -442,6 +442,15 @@ Expected: HTTP `200` from `/api/health`; no API key is printed.
 - [ ] **Step 7: Record the final public origin.** Add the verified Render URL to the portfolio site and Android release build configuration; do not place DeepSeek, MongoDB, SerpAPI, Resend, or digest tokens in frontend code.
 
 - [ ] **Step 8: Commit verification metadata only if needed.** Do not commit secrets or generated build artifacts. If README needs the verified public origin, commit only that URL in a separate documentation commit.
+
+### Local verification record (2026-09-17)
+
+- Backend `mvn clean test`: PASS, 24 tests.
+- Android `gradlew test`: PASS; an ignored `local.properties` points Gradle to the installed SDK.
+- Browser inline JavaScript: PASS via Node syntax/contract check.
+- `git diff --check`: PASS.
+- Docker image build and `/api/health` smoke test: pending because Docker Desktop's Linux engine is not running on the local machine.
+- Render deployment, real-provider search, and `workflow_dispatch`: pending until the owner enters the external service credentials and actual Render origin.
 
 ---
 
