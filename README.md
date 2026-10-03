@@ -14,7 +14,7 @@ JobLens is an explainable job-matching system with a browser experience, a nativ
 - Nationwide U.S. fan-out across prioritized state-level SerpAPI searches.
 - Browser demo, native Android search/history UI, and an operations dashboard.
 - Installable web-app metadata for adding JobLens to an iPhone or Android home screen.
-- Daily Top 10 digest orchestration through GitHub Actions and a token-protected backend endpoint.
+- Manual Top 10 digest orchestration through GitHub Actions and a token-protected backend endpoint (automatic schedule paused until deployment verification).
 - Email delivery through the Resend HTTPS API with a per-user/day idempotency key.
 - Docker deployment blueprint for Render and CI for the Java backend and Android app.
 - Signed Android APK release workflow for GitHub Releases.
@@ -32,7 +32,7 @@ flowchart LR
     R --> L[DeepSeek review: transfer + resume tip]
     L --> W[Web or Android results]
     R --> M[(MongoDB history)]
-    G[GitHub Actions daily schedule] --> D[Protected digest endpoint]
+    G[GitHub Actions manual dispatch] --> D[Protected digest endpoint]
     D --> R
     D --> E[Resend email: Top 10]
 ```

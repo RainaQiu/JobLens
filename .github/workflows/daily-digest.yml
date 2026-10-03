@@ -1,9 +1,8 @@
 name: Send daily JobLens digests
 
 on:
-  schedule:
-    - cron: "0 13 * * *"
-      timezone: "America/New_York"
+  # Automatic scheduling is intentionally paused until Render, MongoDB,
+  # Resend, and the provider secrets are configured and verified.
   workflow_dispatch:
 
 jobs:

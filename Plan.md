@@ -12,6 +12,8 @@
 
 **Implementation status (2026-09-17):** Tasks 1–8 are implemented and pushed to `main`. Task 9's local backend, Android, and browser checks pass; Docker/Render/GitHub workflow smoke tests remain account- and daemon-dependent.
 
+**Safety note:** The GitHub Actions digest schedule is intentionally paused until the external deployment and provider credentials are verified. The workflow remains available through `workflow_dispatch` for a deliberate manual test.
+
 ## Global Constraints
 
 - User-facing career tracks are exactly `Internship`, `New Graduate / Early Career`, and `General Full-time`; server normalization also accepts `ANY`.
